@@ -6,33 +6,99 @@ package main
 // dependencies.
 import (
 	"fmt"
+	"learn/spanish/lesson"
+	"learn/spanish/messages"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/go-pg/pg/v10"
 )
 
-type model struct {
+// AppModel is the parent model managing sub-models
+type AppModel struct {
+	currentModel tea.Model
+	mainMenu     *MainMenuModel
+	lessonMenu   *lesson.LessonMenuModel
+	lesson       *lesson.LessonModel
+}
+
+type MainMenuModel struct {
 	choices  []string         // lesson ids
 	cursor   int              // which to-do list item our cursor is pointing at
 	selected map[int]struct{} // which to-do items are selected
 }
 
-func getLessons() {
+var db *pg.DB
 
+// initDB initializes the database connection
+
+func initDB() error {
+	db = pg.Connect(&pg.Options{
+		User:     "postgres",
+		Password: "example",
+		Database: "postgres",
+		Addr:     "localhost:5432", // Adjust if Docker exposes a different port
+	})
+
+	_, err := db.Exec("SELECT 1")
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %w", err)
+	}
+
+	fmt.Println("Database connection initialized")
+	return nil
+}
+
+// AppModel methods
+func (m AppModel) Init() tea.Cmd {
+	return m.currentModel.Init()
+}
+
+func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case messages.SwitchToLessonMsg:
+		lessonModel, cmd := lesson.NewLessonModel(db, msg.Lesson)
+		m.currentModel = lessonModel
+		m.lesson = lessonModel
+		return m, cmd
+	case messages.SwitchToMenuMsg:
+		m.currentModel = m.mainMenu
+		return m, nil
+	}
+
+	var cmd tea.Cmd
+	m.currentModel, cmd = m.currentModel.Update(msg)
+	return m, cmd
+}
+
+func (m AppModel) View() string {
+	return m.currentModel.View()
 }
 
 func main() {
-	p := tea.NewProgram(initialModel())
+	if err := initDB(); err != nil {
+		fmt.Printf("Error initializing database: %v\n", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	mainMenu := initialModel()
+	appModel := AppModel{
+		currentModel: mainMenu,
+		mainMenu:     &mainMenu,
+	}
+
+	p := tea.NewProgram(appModel)
 	if _, err := p.Run(); err != nil {
-		fmt.Printf("Alas, there's been an error: %v", err)
+		fmt.Printf("Error running program: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func initialModel() model {
-	return model{
+func initialModel() MainMenuModel {
+	return MainMenuModel{
 		// Our to-do list is a grocery list
-		choices: []string{"Test", "Lesson 1", "get history"},
+		choices: []string{"Test db", "Bootstrap", "Lessons"},
 
 		// A map which indicates which choices are selected. We're using
 		// the  map like a mathematical set. The keys refer to the indexes
@@ -41,12 +107,12 @@ func initialModel() model {
 	}
 }
 
-func (m model) Init() tea.Cmd {
+func (m MainMenuModel) Init() tea.Cmd {
 	// Just return `nil`, which means "no I/O right now, please."
 	return nil
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m MainMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	// Is it a key press?
@@ -57,6 +123,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// These keys should exit the program.
 		case "ctrl+c", "q":
+			db.Close()
 			return m, tea.Quit
 
 		// The "up" and "k" keys move the cursor up
@@ -74,9 +141,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// The "enter" key and the spacebar (a literal space) toggle
 		// the selected state for the item that the cursor is pointing at.
 		case "enter", " ":
+			_, ok := m.selected[m.cursor]
+			if ok {
+				delete(m.selected, m.cursor)
+			} else {
+				m.selected[m.cursor] = struct{}{}
+			}
+
 			switch m.cursor {
 			case 0:
 				test()
+			case 1:
+				ImportWords(db, "1000words.tsv")
+				CreateLessons(db, 30)
+			case 2:
+				return lesson.NewLessonMenuModel(db)
 			}
 		}
 	}
@@ -86,9 +165,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m model) View() string {
+func (m MainMenuModel) View() string {
 	// The header
-	s := "Which lesson would you like to study?"
+	s := "Welcome! \n\nWhat would you like to do?\n"
 
 	// Iterate over our choices
 	for i, choice := range m.choices {
@@ -99,14 +178,8 @@ func (m model) View() string {
 			cursor = ">" // cursor!
 		}
 
-		// Is this choice selected?
-		checked := " " // not selected
-		if _, ok := m.selected[i]; ok {
-			checked = "x" // selected!
-		}
-
 		// Render the row
-		s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
+		s += fmt.Sprintf("%s %s\n", cursor, choice)
 	}
 
 	// The footer

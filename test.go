@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"learn/spanish/pg_data"
 
 	"github.com/go-pg/pg/v10"
 )
@@ -16,7 +17,7 @@ func test() {
 	defer db.Close()
 
 	// Insert a word
-	word := &Word{Spanish: "hola", English: "hello"}
+	word := &pg_data.Word{Spanish: "hola", English: "hello"}
 	_, err := db.Model(word).Insert()
 	if err != nil {
 		panic(err)
@@ -25,14 +26,14 @@ func test() {
 	fmt.Println(word.String())
 
 	// Insert a lesson
-	lesson := &Lesson{WordList: []int64{1, word.Id}}
+	lesson := &pg_data.Lesson{WordList: []int64{1, word.Id}}
 	_, err = db.Model(lesson).Insert()
 	if err != nil {
 		panic(err)
 	}
 
 	// Load lesson with words
-	loadedLesson := &Lesson{}
+	loadedLesson := &pg_data.Lesson{}
 	err = db.Model(loadedLesson).
 		Where("lesson.id = ?", lesson.Id).
 		Select()

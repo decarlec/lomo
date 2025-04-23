@@ -1,4 +1,4 @@
-package main
+package pg_data
 
 import (
 	"fmt"
