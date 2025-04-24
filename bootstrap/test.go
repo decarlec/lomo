@@ -17,7 +17,7 @@ func test() {
 	defer db.Close()
 
 	// Insert a word
-	word := &pg_data.Word{Spanish: "hola", English: "hello"}
+	word := &pg_data.Word{Spanish: "hola", English: []string{"hello"}}
 	_, err := db.Model(word).Insert()
 	if err != nil {
 		panic(err)

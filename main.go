@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"learn/spanish/lesson"
 	"learn/spanish/messages"
+	"log"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -45,7 +46,7 @@ func initDB() error {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	fmt.Println("Database connection initialized")
+	log.Println("Database connection initialized")
 	return nil
 }
 
@@ -76,12 +77,22 @@ func (m AppModel) View() string {
 }
 
 func main() {
+	// Setup logging
+	f, err := tea.LogToFile("debug.log", "debug")
+	if err != nil {
+		fmt.Println("fatal:", err)
+		os.Exit(1)
+	}
+	defer f.Close()
+
+	//Connect to db
 	if err := initDB(); err != nil {
 		fmt.Printf("Error initializing database: %v\n", err)
 		os.Exit(1)
 	}
 	defer db.Close()
 
+	//Initialize models
 	mainMenu := initialModel()
 	appModel := AppModel{
 		currentModel: mainMenu,
@@ -98,7 +109,7 @@ func main() {
 func initialModel() MainMenuModel {
 	return MainMenuModel{
 		// Our to-do list is a grocery list
-		choices: []string{"Test db", "Bootstrap", "Lessons"},
+		choices: []string{"Lessons", "Review"},
 
 		// A map which indicates which choices are selected. We're using
 		// the  map like a mathematical set. The keys refer to the indexes
@@ -150,11 +161,6 @@ func (m MainMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			switch m.cursor {
 			case 0:
-				test()
-			case 1:
-				ImportWords(db, "1000words.tsv")
-				CreateLessons(db, 30)
-			case 2:
 				return lesson.NewLessonMenuModel(db)
 			}
 		}
@@ -167,7 +173,7 @@ func (m MainMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m MainMenuModel) View() string {
 	// The header
-	s := "Welcome! \n\nWhat would you like to do?\n"
+	s := "Welcome To Lomo, the language learning cli app! \n\nWhat would you like to do?\n"
 
 	// Iterate over our choices
 	for i, choice := range m.choices {

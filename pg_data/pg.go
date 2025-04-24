@@ -8,8 +8,9 @@ import (
 type Word struct {
 	tableName struct{} `pg:"words"`
 	Id        int64    `pg:"id,pk"`
-	Spanish   string   `pg:"spanish"`
-	English   string   `pg:"english"`
+	Spanish   string   `pg:"spanish,unique,notnull"`
+	English   []string `pg:"english,type:text[]"`
+	Correct   bool     `pg:"-"` // Ignore in SQL; load manually
 }
 
 type User struct {
@@ -47,5 +48,5 @@ func (u User) String() string {
 }
 
 func (s Word) String() string {
-	return fmt.Sprintf("Word<%d %s %s>", s.Id, s.Spanish, s.English)
+	return fmt.Sprintf("Word:\n%d\n%s\n%s\n---\n", s.Id, s.Spanish, s.English)
 }

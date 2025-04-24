@@ -5,7 +5,9 @@ import (
 	"learn/spanish/messages"
 	"learn/spanish/pg_data"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/go-pg/pg/v10"
 )
 
@@ -13,9 +15,14 @@ import (
 type LessonModel struct {
 	lesson    pg_data.Lesson
 	words     []pg_data.Word
+	textInput textinput.Model
 	current   int
-	showFront bool
 }
+
+var (
+	bg = lipgloss.Color("#7168f2")
+	fg = lipgloss.Color("#db9a3d")
+)
 
 // NewLessonModel creates a LessonModel for a given lesson
 func NewLessonModel(db *pg.DB, lesson pg_data.Lesson) (*LessonModel, tea.Cmd) {
@@ -30,43 +37,74 @@ func NewLessonModel(db *pg.DB, lesson pg_data.Lesson) (*LessonModel, tea.Cmd) {
 		return &LessonModel{}, tea.Quit
 	}
 
+	ti := textinput.New()
+	ti.Focus()
+	ti.CharLimit = 156
+	ti.Width = 10
+	var inputStyle = lipgloss.NewStyle().Foreground(fg).Background(bg)
+	ti.PromptStyle = inputStyle
+	ti.TextStyle = inputStyle
+	ti.Cursor.Style = inputStyle
+
 	return &LessonModel{
 		lesson:    lesson,
 		words:     words,
-		showFront: true,
+		textInput: ti,
 	}, nil
 }
 
 // LessonModel methods
 func (m LessonModel) Init() tea.Cmd {
-	return nil
+	return textinput.Blink
 }
 
 func (m LessonModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
+		switch msg.Type {
+		case tea.KeyCtrlC:
+			return m, tea.Quit
+
+		case tea.KeyEsc:
 			return m, func() tea.Msg {
 				return messages.SwitchToMenuMsg{}
 			}
-		case "right", "l":
+		//Scroll words
+		case tea.KeyRight:
 			if m.current < len(m.words)-1 {
 				m.current++
-				m.showFront = true
+				return m, nil
 			}
-		case "left", "h":
+		//Scroll words
+		case tea.KeyLeft:
 			if m.current > 0 {
 				m.current--
-				m.showFront = true
+				return m, nil
 			}
-		case " ":
-			m.showFront = !m.showFront
-		case "b":
+		//Go back
+		case tea.KeyCtrlB:
 			return m, func() tea.Msg {
 				return messages.SwitchToMenuMsg{}
 			}
+		case tea.KeyEnter:
+			if m.textInput.Value() == m.words[m.current].English {
+				m.words[m.current].Correct = true
+				m.textInput.SetValue("")
+				m.textInput.Placeholder = ""
+				m.current++
+			} else {
+				m.textInput.SetValue("")
+				m.textInput.Placeholder = "try again!"
+			}
+		case tea.KeyDelete:
+			m.textInput.SetValue(m.words[m.current].English)
 		}
+
+		//handle actual text input
+		m.textInput, cmd = m.textInput.Update(msg)
+		return m, cmd
 	}
 	return m, nil
 }
@@ -78,11 +116,23 @@ func (m LessonModel) View() string {
 
 	word := m.words[m.current]
 	s := fmt.Sprintf("Lesson %d - Word %d/%d\n\n", m.lesson.Id, m.current+1, len(m.words))
-	if m.showFront {
-		s += fmt.Sprintf("Spanish: %s\n", word.Spanish)
-	} else {
-		s += fmt.Sprintf("English: %s\n", word.English)
+	s += fmt.Sprintf("Spanish: %s\n", word.Spanish)
+	s += m.textInput.View() + "\n"
+	if word.Correct {
+		s += fmt.Sprintf("Correct! %s means %s!\n", word.Spanish, word.English)
 	}
-	s += "\nPress space to flip, h/l to navigate, b to go back, q to quit.\n"
-	return s
+	s += "\nPress space to flip, left/right to navigate, Ctrl+b to go back, Esc to quit.\n"
+	return style(s)
+}
+
+func style(view string) string {
+	var style = lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(bg).
+		PaddingTop(2).
+		PaddingLeft(4).
+		Width(100)
+
+	return style.Render(view)
 }
