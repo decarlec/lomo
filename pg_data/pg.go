@@ -11,6 +11,7 @@ type Word struct {
 	Spanish   string   `pg:"spanish,unique,notnull"`
 	English   []string `pg:"english,type:text[]"`
 	Correct   bool     `pg:"-"` // Ignore in SQL; load manually
+	Peek      bool     `pg:"-"` // Ignore in SQL; load manually
 }
 
 type User struct {

@@ -25,13 +25,12 @@ func main() {
 		panic(err)
 	}
 
-	// ImportWords(db, "1000words.tsv")
-	//CreateLessons(db, ParseLessonWords(db, "1000words.tsv"), 30)
 	ProcessWords(db)
+	CreateLessons(db, parseLessonWords("1000words.tsv"), 30)
 }
 
 // Parse words from file (1000 words.txt) and return array of words
-func ParseLessonWords(db *pg.DB, filePath string) []Word {
+func parseLessonWords(filePath string) []Word {
 	// Open the TSV file
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -114,6 +113,7 @@ func chunkWords(words []Word, lessonSize int) [][]Word {
 
 // CreateLessons creates lessons with 30 unique words each from the vocabulary table
 func CreateLessons(db *pg.DB, words []Word, lessonSize int) error {
+	askForConfirmation("This will create lessons in the db, are you sure?")
 	// Create lessons
 	for i, lessonWords := range chunkWords(words, lessonSize) {
 		//Get the spanish words for the query
@@ -155,7 +155,7 @@ func CreateLessons(db *pg.DB, words []Word, lessonSize int) error {
 			return fmt.Errorf("failed to insert lesson %d: %w", i+1, err)
 		}
 
-		//fmt.Printf("Created lesson ID=%d with %d words\n", lesson.Id, len(lesson.WordList))
+		fmt.Printf("Created lesson ID=%d with %d words\n", lesson.Id, len(lesson.WordList))
 	}
 
 	return nil
@@ -176,7 +176,7 @@ type Word struct {
 }
 
 // UpsertWord checks if a Spanish word exists, creates it if not, or appends English translation if it does
-func UpsertWord(db *pg.DB, spanishWord, englishTranslation, wordType string) error {
+func upsertWord(db *pg.DB, spanishWord, englishTranslation, wordType string) error {
 	// Use a transaction to ensure atomicity
 	return db.RunInTransaction(context.Background(), func(tx *pg.Tx) error {
 		// Attempt to insert or update using ON CONFLICT
@@ -204,6 +204,8 @@ func ProcessWords(db *pg.DB) error {
 		os.Exit(1)
 	}
 
+	askForConfirmation("This will put a bunch of words in the db, and take a while. Are you sure?")
+
 	var dict Dictionary
 
 	if err := xml.Unmarshal([]byte(dat), &dict); err != nil {
@@ -213,11 +215,25 @@ func ProcessWords(db *pg.DB) error {
 		fmt.Println(letter.Words[0])
 		for _, word := range letter.Words {
 			// Assuming word.English is a slice, take first
-			err := UpsertWord(db, word.Spanish, word.English, word.Type)
+			err := upsertWord(db, word.Spanish, word.English, word.Type)
 			if err != nil {
 				fmt.Println("UPSERT ERROR")
 			}
 		}
 	}
 	return nil
+}
+
+func askForConfirmation(s string) bool {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Printf("%s [y/N]: ", s)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		panic(err)
+	}
+	response = strings.ToLower(strings.TrimSpace(response))
+	if response == "y" || response == "yes" {
+		return true
+	}
+	return false
 }

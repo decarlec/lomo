@@ -79332,6 +79332,11 @@
     </w>
     <w>
         <c>era</c>
+        <d>was</d>
+        <t>{}</t>
+    </w>
+    <w>
+        <c>era</c>
         <d>threshing floor</d>
         <t>{f}</t>
     </w>
