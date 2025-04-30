@@ -14538,7 +14538,7 @@
     </w>
     <w>
         <c>animal</c>
-        <d></d>
+        <d>animal</d>
         <t>{m} [l/en, animal]</t>
     </w>
     <w>
@@ -100315,6 +100315,11 @@
     </w>
     <w>
         <c>hace</c>
+        <d>does</d>
+        <t>{}</t>
+    </w>
+    <w>
+        <c>hace</c>
         <d>ago, has been (Note: unlike in English, hace precedes the number.)</d>
         <t>{adv}</t>
     </w>
@@ -183278,6 +183283,11 @@
         <c>son</c>
         <d>A pleasant sound, tone</d>
         <t>{m}</t>
+    </w>
+    <w>
+        <c>son</c>
+        <>are</d>
+        <t>{}</t>
     </w>
     <w>
         <c>sonaja</c>

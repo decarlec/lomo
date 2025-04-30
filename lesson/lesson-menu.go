@@ -6,6 +6,7 @@ import (
 	"learn/spanish/pg_data"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/go-pg/pg/v10"
 )
 
@@ -68,7 +69,12 @@ func (m LessonMenuModel) View() string {
 		if m.cursor == i {
 			cursor = ">"
 		}
-		s += fmt.Sprintf("%s Lesson %d (%d words)\n", cursor, lesson.Id, len(lesson.WordList))
+		var lessonStr = fmt.Sprintf("%s Lesson %d (%d/%d) \n", cursor, lesson.Id, getNumCorrect(lesson.Words), len(lesson.WordList))
+		if getNumCorrect(lesson.Words) == len(lesson.WordList) {
+			s += greenStyle(lessonStr)
+		} else {
+			s += lipgloss.NewStyle().Render(lessonStr)
+		}
 	}
 	s += "\nPress q to quit.\n"
 	return s

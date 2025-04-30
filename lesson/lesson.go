@@ -146,9 +146,9 @@ func checkWord(input string, translations []string) bool {
 	})
 }
 
-func getNumCorrect(m LessonModel) int {
+func getNumCorrect(words []pg_data.Word) int {
 	num := 0
-	for _, word := range m.words {
+	for _, word := range words {
 		if word.Correct {
 			num += 1
 		}
@@ -162,7 +162,7 @@ func (m LessonModel) View() string {
 	}
 
 	word := m.words[m.current]
-	s := fmt.Sprintf("Lesson %d - Word %d/%d\n\n", m.lesson.Id, getNumCorrect(m), len(m.words))
+	s := fmt.Sprintf("Lesson %d - Word %d/%d\n\n", m.lesson.Id, getNumCorrect(m.words), len(m.words))
 	s += "Spanish: "
 	s += lipgloss.NewStyle().Bold(true).UnsetPadding().Foreground(target_word_color).Render(word.Spanish)
 	s += "\n"
@@ -192,6 +192,13 @@ func style(view string) string {
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color(default_text)).
 		BorderBackground(lipgloss.Color(bg))
+	return style.Render(view)
+}
+
+func greenStyle(view string) string {
+	var style = lipgloss.NewStyle().
+		Foreground(lipgloss.Color(correct_color))
+
 	return style.Render(view)
 }
 
