@@ -102,10 +102,7 @@ func parseLessonWords(filePath string) []Word {
 func chunkWords(words []Word, lessonSize int) [][]Word {
 	var chunks [][]Word
 	for i := 0; i < len(words); i += lessonSize {
-		end := i + lessonSize
-		if end > len(words) {
-			end = len(words)
-		}
+		end := min(i+lessonSize, len(words))
 		chunks = append(chunks, words[i:end])
 	}
 	return chunks
@@ -113,6 +110,11 @@ func chunkWords(words []Word, lessonSize int) [][]Word {
 
 // CreateLessons creates lessons with 30 unique words each from the vocabulary table
 func CreateLessons(db *pg.DB, words []Word, lessonSize int) error {
+	//first update the primary translations in the db
+	for _, word := range words {
+		updatePrimaryTranslation(db, word.Spanish, word.English)
+	}
+
 	askForConfirmation("This will create lessons in the db, are you sure?")
 	// Create lessons
 	for i, lessonWords := range chunkWords(words, lessonSize) {
@@ -189,6 +191,26 @@ func upsertWord(db *pg.DB, spanishWord, englishTranslation, wordType string) err
 		`
 		var resultSpanish pg_data.Word
 		_, err := tx.QueryOne(&resultSpanish, query, spanishWord, englishTranslation, wordType, englishTranslation)
+		if err != nil {
+			panic(err)
+		}
+		return nil
+	})
+}
+
+func updatePrimaryTranslation(db *pg.DB, spanishWord, translation string) error {
+	// Use a transaction to ensure atomicity
+	return db.RunInTransaction(context.Background(), func(tx *pg.Tx) error {
+		// Attempt to insert or update using ON CONFLICT
+		query := `
+			INSERT INTO words (spanish, english_primary)
+			VALUES (?, ?)
+			ON CONFLICT (spanish) DO UPDATE
+			SET english_primary = ?
+			RETURNING spanish
+		`
+		var resultSpanish pg_data.Word
+		_, err := tx.QueryOne(&resultSpanish, query, spanishWord, translation, translation)
 		if err != nil {
 			panic(err)
 		}

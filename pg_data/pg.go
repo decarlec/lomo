@@ -6,12 +6,13 @@ import (
 )
 
 type Word struct {
-	tableName struct{} `pg:"words"`
-	Id        int64    `pg:"id,pk"`
-	Spanish   string   `pg:"spanish,unique,notnull"`
-	English   []string `pg:"english,type:text[]"`
-	Correct   bool     `pg:"-"` // Ignore in SQL; load manually
-	Peek      bool     `pg:"-"` // Ignore in SQL; load manually
+	tableName       struct{} `pg:"words"`
+	Id              int64    `pg:"id,pk"`
+	Spanish         string   `pg:"spanish,unique,notnull"`
+	English         []string `pg:"english,type:text[]"`
+	English_Primary string   `pg:"english_primary"`
+	Correct         bool     `pg:"-"` // Ignore in SQL; load manually
+	Peek            bool     `pg:"-"` // Ignore in SQL; load manually
 }
 
 type User struct {

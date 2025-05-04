@@ -8,8 +8,9 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS words (
     id SERIAL PRIMARY KEY,
     spanish TEXT NOT NULL UNIQUE,
-    english TEXT[] NOT NULL DEFAULT '{}',
-    word_type VARCHAR(255) NOT NULL
+    english TEXT[] DEFAULT '{}',
+    english_primary TEXT,
+    word_type VARCHAR(255)
 );
 
 -- Table to store lessons, each associated with a list of word IDs

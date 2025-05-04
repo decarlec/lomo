@@ -102,7 +102,7 @@ func (m LessonModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return messages.SwitchToMenuMsg{}
 			}
 		case tea.KeyEnter:
-			if checkWord(m.textInput.Value(), currentWord.English) {
+			if m.textInput.Value() == currentWord.English_Primary || checkWord(m.textInput.Value(), currentWord.English) {
 				currentWord.Correct = true
 				m.textInput.Placeholder = ""
 			} else {
@@ -177,7 +177,7 @@ func (m LessonModel) View() string {
 }
 
 func translation(word pg_data.Word) string {
-	return fmt.Sprintf("Translations:\n\t%s", strings.Join(word.English, "\n\t"))
+	return fmt.Sprintf("Translation: %s \n\nOther translations:\n\t%s", word.English_Primary, strings.Join(word.English, "\n\t"))
 }
 
 func style(view string) string {
