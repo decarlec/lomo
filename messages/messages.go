@@ -7,4 +7,8 @@ type SwitchToLessonMsg struct {
 	Lesson pg_data.Lesson
 }
 
+type SwitchToReviewMsg struct {
+	Lesson pg_data.Lesson
+}
+
 type SwitchToMenuMsg struct{}

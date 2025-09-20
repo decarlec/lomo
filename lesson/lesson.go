@@ -5,6 +5,7 @@ import (
 	"learn/spanish/messages"
 	"learn/spanish/pg_data"
 	"log"
+	"math/rand"
 	"regexp"
 	"slices"
 	"strings"
@@ -44,6 +45,12 @@ func NewLessonModel(db *pg.DB, lesson pg_data.Lesson) (*LessonModel, tea.Cmd) {
 	if err != nil {
 		fmt.Printf("Error fetching words: %v\n", err)
 		return &LessonModel{}, tea.Quit
+	}
+
+	//shuffle words
+	for i := range words {
+		j := rand.Intn(i + 1)
+		words[i], words[j] = words[j], words[i]
 	}
 
 	ti := textinput.New()

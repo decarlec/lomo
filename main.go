@@ -65,6 +65,11 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.SwitchToMenuMsg:
 		m.currentModel = m.mainMenu
 		return m, nil
+		// case messages.SwitchToReviewMsg:
+		// 	lessonModel, cmd := lesson.NewLessonModel(db, msg.Lesson)
+		// 	m.currentModel = lessonModel
+		// 	m.lesson = lessonModel
+		// 	return m, cmd
 	}
 
 	var cmd tea.Cmd

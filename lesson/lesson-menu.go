@@ -13,6 +13,7 @@ import (
 // MenuModel displays a list of lessons
 type LessonMenuModel struct {
 	lessons []pg_data.Lesson
+	review  pg_data.Lesson
 	cursor  int
 }
 
@@ -69,7 +70,12 @@ func (m LessonMenuModel) View() string {
 		if m.cursor == i {
 			cursor = ">"
 		}
-		var lessonStr = fmt.Sprintf("%s Lesson %d (%d/%d) \n", cursor, lesson.Id, getNumCorrect(lesson.Words), len(lesson.WordList))
+		var lessonStr string
+		if i == 0 {
+			lessonStr = fmt.Sprintf("%s Review\n", cursor)
+		} else {
+			lessonStr = fmt.Sprintf("%s Lesson %d (%d/%d) \n", cursor, lesson.Id, getNumCorrect(lesson.Words), len(lesson.WordList))
+		}
 		if getNumCorrect(lesson.Words) == len(lesson.WordList) {
 			s += greenStyle(lessonStr)
 		} else {

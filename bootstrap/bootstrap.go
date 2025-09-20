@@ -26,7 +26,10 @@ func main() {
 	}
 
 	ProcessWords(db)
-	CreateLessons(db, parseLessonWords("1000words.tsv"), 30)
+	words := parseLessonWords("1000words.tsv")
+	//First lesson will be a review of all words.
+	CreateLessons(db, words, 1000)
+	CreateLessons(db, words, 30)
 }
 
 // Parse words from file (1000 words.txt) and return array of words
