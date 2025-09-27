@@ -26,6 +26,7 @@ func NewLessonMenuModel(db *sql.DB) (*LessonMenuModel, tea.Cmd) {
 		log.Fatalf("Error fetching lessons: %v\n", err)
 	}
 
+	log.Printf("Fetched %d lessons from database\n", len(lessons))
 	return &LessonMenuModel{lessons: lessons}, nil
 }
 
@@ -51,6 +52,7 @@ func (m LessonMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			if m.cursor < len(m.lessons) {
 				return m, func() tea.Msg {
+					log.Printf("Switching to lesson %d\n", m.lessons[m.cursor].Id)
 					return messages.SwitchToLessonMsg{Lesson: m.lessons[m.cursor]}
 				}
 			}

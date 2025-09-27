@@ -1,17 +1,11 @@
-db_container:
-	docker compose -f db/docker-compose.yaml up -d	
-
-db_setup:
-	cd db && ./db_setup.sh
-
 db_bootstrap:
 	cd bootstrap && go run bootstrap.go
 
 run:
 	go run . 
 
-db_admin:
-	docker exec -it db-db-1 psql -U postgres -d postgres
+build_mac:
+	CGO_ENABLED=1 GOODOS=darwin GOARCH=arm64 CC=aarch64-linux-gnu-gcc go build -o bin/lomo_mac main.go
 
-drop_all_tables:
-	docker exec -it db-db-1 psql -U postgres -d postgres -c 'drop table lesson; drop table users; drop table words'
+build_win:
+	GOOS=windows GOARCH=386 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o bin/lomo_win.exe main.go

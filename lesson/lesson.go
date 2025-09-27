@@ -36,6 +36,8 @@ var (
 	correct_color     = lipgloss.Color("#03fc56")
 )
 
+const SHUFFLE=false
+
 // NewLessonModel creates a LessonModel for a given lesson
 func NewLessonModel(db *sql.DB, lesson *models.Lesson) (*LessonModel, tea.Cmd) {
 	lesson, err := models.GetLessonByID(db, lesson.Id)
@@ -57,12 +59,14 @@ func NewLessonModel(db *sql.DB, lesson *models.Lesson) (*LessonModel, tea.Cmd) {
 	}
 
 
+	words := lesson.Words
+	if SHUFFLE {
 	// Shuffle words
-	shuffled := lesson.Words
-	for i := range shuffled {
+	for i := range words {
 		j := rand.Intn(i + 1)
-		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+		words[i], words[j] = words[j], words[i]
 	}
+}
 
 	ti := textinput.New()
 	ti.Focus()
@@ -76,7 +80,7 @@ func NewLessonModel(db *sql.DB, lesson *models.Lesson) (*LessonModel, tea.Cmd) {
 
 	return &LessonModel{
 		lesson:    *lesson,
-		words:     shuffled,
+		words: words,
 		textInput: ti,
 	}, nil
 }
@@ -88,6 +92,8 @@ func (m LessonModel) Init() tea.Cmd {
 
 func (m LessonModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+
+	log.Printf("Updating lessonmodel")
 
 	var currentWord = &m.words[m.current]
 

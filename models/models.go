@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"log"
 )
 
 type Word struct {
@@ -26,7 +27,7 @@ type User struct {
 
 type Lesson struct {
 	Id      int64  `db:"id"`
-	WordIDs string `db:"word_list"` // Stored as comma-separated string of IDs
+	WordIDs string `db:"word_ids"` // Stored as comma-separated string of IDs
 	Words   []Word `db:"-"`         // Ignore in database; load manually
 }
 
@@ -69,7 +70,7 @@ func GetLessonByID(db *sql.DB, id int64) (*Lesson, error) {
 	var lesson Lesson
 
 	// Get lesson
-	err := db.QueryRow("SELECT id, word_list FROM lessons WHERE id = ?", id).Scan(
+	err := db.QueryRow("SELECT id, word_ids FROM lessons WHERE id = ?", id).Scan(
 		&lesson.Id, &lesson.WordIDs,
 	)
 	if err != nil {
@@ -111,7 +112,7 @@ func GetLessonByID(db *sql.DB, id int64) (*Lesson, error) {
 func GetAllLessons(db *sql.DB) ([]Lesson, error) {
 	var lessons []Lesson
 
-	query := `SELECT id, word_list FROM lessons`
+	query := `SELECT id, word_ids FROM lessons`
 	
 	rows, err := db.Query(query)
 	if err != nil {
@@ -120,11 +121,13 @@ func GetAllLessons(db *sql.DB) ([]Lesson, error) {
 	defer rows.Close()
 
 	for rows.Next() {
+		log.Println("Scanning lesson row")
 		var lesson Lesson
 		err := rows.Scan(&lesson.Id, &lesson.WordIDs)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning lesson: %w", err)
 		}
+		log.Println("Appending lesson")
 		lessons = append(lessons, lesson)
 	}
 

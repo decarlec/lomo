@@ -6,7 +6,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"learn/spanish/models"
-	"log"
 	"os"
 	"strings"
 
@@ -28,6 +27,13 @@ type XmlWord struct {
 }
 
 func main() {
+	askForConfirmation("Deleting words.db. Are you sure?")
+	err := os.Remove("../words.db")
+	if err != nil && !os.IsNotExist(err) {
+		fmt.Printf("Failed to delete existing database: %v\n", err)
+		os.Exit(1)
+	}
+
 	// Initialize SQLite3 database
 	db, err := sql.Open("sqlite3", "../words.db")
 	if err != nil {
@@ -39,23 +45,25 @@ func main() {
 	// Init databse schema
 	sqlFile, err := os.ReadFile("schema.sql")
 	if err != nil {
-		log.Fatalf("Failed to read schema file: %v", err)
+		fmt.Printf("Failed to read schema file: %v", err)
 	}
 
 	_, err = db.Exec(string(sqlFile))
 	if err != nil {
-		log.Fatalf("Failed to execute schema: %v", err)
+		fmt.Printf("Failed to execute schema: %v", err)
 	}
 
 	words := parseLessonWords("1000words.tsv")
-	processWords(db)
+	//Processes words from both files
+	processWords(db, words)
+
 	//First lesson will be a review of all words.
 	createLessons(db, words, 1000)
 	createLessons(db, words, 30)
 }
-//
+
 // Inserts database words.
-func processWords(db *sql.DB) error {
+func processWords(db *sql.DB, lessonWords []XmlWord) error {
 	dat, err := os.ReadFile("es-en.xml")
 	if err != nil {
 		fmt.Printf("Error opening file: %v\n", err)
@@ -76,6 +84,7 @@ func processWords(db *sql.DB) error {
 	}
 	defer func() {
 		if err != nil {
+			println("Rolling back transaction due to error:", err)
 			tx.Rollback()
 		}
 	}()
@@ -86,107 +95,93 @@ func processWords(db *sql.DB) error {
 		for _, xWord := range xLetter.Words {
 			mappedWord, exists := processedWords[xWord.Spanish]
 			if exists == true {
+				//println("Found existing word for", xWord.Spanish, "adding translation", xWord.English)
 				mappedWord.English_Translations = append(mappedWord.English_Translations, xWord.English)
+				processedWords[xWord.Spanish] = mappedWord
 			} else {
-				mappedWord.EnglishPrimary = xWord.English
-				mappedWord.English_Translations = []string{xWord.English}
-				mappedWord.WordType = xWord.Type
-			}
-			mappedWord.Spanish = xWord.Spanish
+				//println("New word for", xWord.Spanish, "with translation", xWord.English)
+				newWord := models.Word{}
+				newWord.English_Translations = []string{xWord.English}
+				newWord.WordType = xWord.Type
 
-			processedWords[xWord.Spanish] = mappedWord
+				//Add the primary translation if it exists in the tsv file
+				for _, word := range lessonWords {
+					if word.Spanish == xWord.Spanish {
+						newWord.EnglishPrimary = word.English
+					}
+				}
+				newWord.Spanish = xWord.Spanish
+				processedWords[xWord.Spanish] = newWord
+			}
 		}
 	}
+	fmt.Printf("Processed %d unique words from XML\n", len(processedWords))
 
 	for _, word := range processedWords {
-		if word.Spanish == "hecho" {
-			log.Println(word.Spanish, word.EnglishTranslations)
+		err := insertWord(tx, word)
+		if err != nil {
+			fmt.Println("Error inserting word:", err)
+			return err
 		}
-			err := insertWord(tx, word)
-			if err != nil {
-				fmt.Println("UPSERT ERROR:", err)
-				return err
-			}
 	}
 
 	err = tx.Commit()
 	if err != nil {
+		println("Rolling back transaction due to error:", err)
 		return err
 	}
 	return nil
 }
 
-// Try insert a word, takes a word model. If the word already exists, it will just append the english translation 
+// Try insert a word, takes a word model. If the word already exists, it will just append the english translation
 func insertWord(tx *sql.Tx, word models.Word) error {
-    var existingEnglish string
-    err := tx.QueryRow("SELECT english_translations FROM words WHERE spanish = ?", word.Spanish).Scan(&existingEnglish)
-    
-    if err == sql.ErrNoRows {
-        // Insert new word
-        _, err = tx.Exec(
-					"INSERT INTO words (spanish, english_primary, english_translations, word_type, ) VALUES (?, ?, ?, ?)",
-            word.Spanish, word.EnglishPrimary, strings.Join(word.English_Translations, ","), word.WordType)
-        return err
-    } else if err != nil {
-        return err
-    }
-    
-    // Spanish word exists - always append the new translation
-    newEnglish := existingEnglish + "," + word.EnglishTranslations
-
-    _, err = tx.Exec(
-        "UPDATE words SET english_translations = ? WHERE spanish = ?",
-        newEnglish, word.Spanish,
-    )
-    return err
+	// Insert new word
+	_, err := tx.Exec(
+		"INSERT INTO words (spanish, english_primary, english_translations, word_type) VALUES (?, ?, ?, ?)",
+		word.Spanish, word.EnglishPrimary, strings.Join(word.English_Translations, ","), word.WordType)
+	return err
 }
-
-//Updated the primary translation for a word, inserting if it doesn't exist
-func updatePrimaryTranslation(db *sql.DB, spanishWord, translation string) error {
-	// Use a transaction to ensure atomicity
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		}
-	}()
-
-	// Try to update first
-	res, err := tx.Exec("UPDATE words SET english = ? WHERE spanish = ?", translation, spanishWord)
-	if err != nil {
-		return err
-	}
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if rowsAffected == 0 {
-		// Insert if not exists
-		_, err = tx.Exec("INSERT INTO words (spanish, english) VALUES (?, ?)", spanishWord, translation)
-		if err != nil {
-			return err
-		}
-	}
-	return tx.Commit()
-}
-
 
 // CreateLessons creates lessons with 30 unique words each from the vocabulary table
 func createLessons(db *sql.DB, words []XmlWord, lessonSize int) error {
-	// First update the primary translations in the db
-	for _, word := range words {
-		err := updatePrimaryTranslation(db, word.Spanish, word.English)
-		if err != nil {
-			fmt.Printf("Failed to update translation for %s: %v\n", word.Spanish, err)
-		}
-	}
-
 	askForConfirmation("This will create lessons in the db, are you sure?")
 
-	// Begin transaction for all lesson inserts
+	// Pre-load all word IDs once instead of querying for each lesson
+	wordMap := make(map[string]int64)
+	allSpanishWords := make([]string, 0, len(words))
+
+	for _, word := range words {
+		allSpanishWords = append(allSpanishWords, word.Spanish)
+	}
+
+	placeholders := strings.Repeat("?,", len(allSpanishWords))
+	placeholders = strings.TrimRight(placeholders, ",")
+	query := fmt.Sprintf("SELECT id, spanish FROM words WHERE spanish IN (%s)", placeholders)
+
+	args := make([]any, len(allSpanishWords))
+	for i, w := range allSpanishWords {
+		args[i] = w
+	}
+
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to query words: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id int64
+		var spanish string
+		if err := rows.Scan(&id, &spanish); err != nil {
+			return err
+		}
+		wordMap[spanish] = id
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	fmt.Printf("Map contains %d words\n", len(wordMap))
 	tx, err := db.Begin()
 	if err != nil {
 		return err
@@ -197,49 +192,25 @@ func createLessons(db *sql.DB, words []XmlWord, lessonSize int) error {
 		}
 	}()
 
+	//Go through the word list and create a map of spanish to id
 	for i, lessonWords := range chunkWords(words, lessonSize) {
-		// ...existing code to build spanishWords, query word IDs, etc...
-
-		// Prepare query to get word IDs
-		var spanishWords []string
-		for _, word := range lessonWords {
-			spanishWords = append(spanishWords, word.Spanish)
-		}
-		placeholders := strings.Repeat("?,", len(spanishWords))
-		placeholders = strings.TrimRight(placeholders, ",")
-		query := fmt.Sprintf("SELECT id, spanish FROM words WHERE spanish IN (%s)", placeholders)
-
-		args := make([]any, len(spanishWords))
-		for i, w := range spanishWords {
-			args[i] = w
-		}
-
-		rows, err := db.Query(query, args...)
-		if err != nil {
-			return fmt.Errorf("failed to query words: %w", err)
-		}
-		defer rows.Close()
-
 		var wordIDs []int64
-		for rows.Next() {
-			var id int64
-			var spanish string
-			if err := rows.Scan(&id, &spanish); err != nil {
-				return err
+		for _, word := range lessonWords {
+			if id, exists := wordMap[word.Spanish]; exists {
+				wordIDs = append(wordIDs, id)
 			}
-			wordIDs = append(wordIDs, id)
-		}
-		if err := rows.Err(); err != nil {
-			return err
 		}
 
+		//Convert word ids to strings
 		wordIDsStr := make([]string, len(wordIDs))
 		for i, id := range wordIDs {
 			wordIDsStr[i] = fmt.Sprintf("%d", id)
 		}
 		wordIDsCSV := strings.Join(wordIDsStr, ",")
 
-		// Insert lesson using transaction
+		//insert lesson into db
+		fmt.Printf("Processing lesson with %d words\n", len(lessonWords))
+		fmt.Printf("Inserting Ids for words: %s\n", wordIDsCSV)
 		res, err := tx.Exec("INSERT INTO lessons (word_ids) VALUES (?)", wordIDsCSV)
 		if err != nil {
 			return fmt.Errorf("failed to insert lesson %d: %w", i+1, err)
@@ -248,13 +219,7 @@ func createLessons(db *sql.DB, words []XmlWord, lessonSize int) error {
 		fmt.Printf("Created lesson ID=%d with %d words\n", lessonID, len(wordIDs))
 	}
 
-	// Commit transaction after all lessons are inserted
-	err = tx.Commit()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return tx.Commit()
 }
 
 // Parse words from file (1000 words.txt) and return array of words
@@ -270,7 +235,8 @@ func parseLessonWords(filePath string) []XmlWord {
 	// Read the file
 	scanner := bufio.NewScanner(file)
 	lineNumber := 0
-	var words []XmlWord
+
+	words := make([]XmlWord, 0)
 
 	for scanner.Scan() {
 		lineNumber++
