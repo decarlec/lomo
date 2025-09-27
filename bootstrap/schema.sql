@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS words (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     spanish TEXT NOT NULL UNIQUE,
-    english TEXT,
+    english_translations TEXT,
     english_primary TEXT,
     word_type TEXT
 );

@@ -1,19 +1,21 @@
 package lesson
 
 import (
+	"fmt"
 	"learn/spanish/messages"
 	"learn/spanish/models"
 	"log"
 	"math/rand"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
-	"fmt"
+
+	"database/sql"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"database/sql"
 )
 
 // LessonModel displays flashcards for a lesson
@@ -35,22 +37,31 @@ var (
 )
 
 // NewLessonModel creates a LessonModel for a given lesson
-func NewLessonModel(db *sql.DB, lesson models.Lesson) (*LessonModel, tea.Cmd) {
-	lessonWords, err := models.GetLessonByID(db, lesson.Id)
+func NewLessonModel(db *sql.DB, lesson *models.Lesson) (*LessonModel, tea.Cmd) {
+	lesson, err := models.GetLessonByID(db, lesson.Id)
 	if err != nil {
 		log.Fatalf("Error fetching lesson by ID: %v\n", err)
 	}
 
-	for _, word := range lessonWords.Words {
-		englishTranslations := strings.Split(word.English, ",")
-		word.English_Translations = englishTranslations
+	for _, wordID := range strings.Split(lesson.WordIDs, ",") {
+		wordIdInt, err := strconv.ParseInt(wordID, 10, 64)
+		if err != nil {
+			log.Fatalf("Error parsing word ID '%s': %v\n", wordID, err)
+		}
+		word, err := models.GetWordByID(db, wordIdInt);
+		if err != nil {
+			log.Fatalf("Error fetching word by ID %d: %v\n", wordIdInt, err)
+		}
+
+		lesson.Words = append(lesson.Words, word)
 	}
 
+
 	// Shuffle words
-	words := lessonWords.Words
-	for i := range words {
+	shuffled := lesson.Words
+	for i := range shuffled {
 		j := rand.Intn(i + 1)
-		words[i], words[j] = words[j], words[i]
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
 	}
 
 	ti := textinput.New()
@@ -64,8 +75,8 @@ func NewLessonModel(db *sql.DB, lesson models.Lesson) (*LessonModel, tea.Cmd) {
 	ti.PlaceholderStyle = inputStyle
 
 	return &LessonModel{
-		lesson:    lesson,
-		words:     words,
+		lesson:    *lesson,
+		words:     shuffled,
 		textInput: ti,
 	}, nil
 }

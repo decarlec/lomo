@@ -90,6 +90,7 @@ func processWords(db *sql.DB) error {
 			} else {
 				mappedWord.EnglishPrimary = xWord.English
 				mappedWord.English_Translations = []string{xWord.English}
+				mappedWord.WordType = xWord.Type
 			}
 			mappedWord.Spanish = xWord.Spanish
 
@@ -99,9 +100,9 @@ func processWords(db *sql.DB) error {
 
 	for _, word := range processedWords {
 		if word.Spanish == "hecho" {
-			log.Println(word.Spanish, word.English)
+			log.Println(word.Spanish, word.EnglishTranslations)
 		}
-			err := upsertWord(tx, word.Spanish, word.English, word.WordType)
+			err := insertWord(tx, word)
 			if err != nil {
 				fmt.Println("UPSERT ERROR:", err)
 				return err
@@ -115,32 +116,27 @@ func processWords(db *sql.DB) error {
 	return nil
 }
 
-func upsertWord(tx *sql.Tx, spanishWord, englishTranslation, wordType string) error {
-    spanishWord = strings.TrimSpace(spanishWord)
-    englishTranslation = strings.TrimSpace(englishTranslation)
-		
-    if spanishWord == "" || englishTranslation == "" {
-        return nil // skip empty entries
-    }
+// Try insert a word, takes a word model. If the word already exists, it will just append the english translation 
+func insertWord(tx *sql.Tx, word models.Word) error {
     var existingEnglish string
-    err := tx.QueryRow("SELECT english FROM words WHERE spanish = ?", spanishWord).Scan(&existingEnglish)
+    err := tx.QueryRow("SELECT english_translations FROM words WHERE spanish = ?", word.Spanish).Scan(&existingEnglish)
     
     if err == sql.ErrNoRows {
         // Insert new word
         _, err = tx.Exec(
-            "INSERT INTO words (spanish, english, word_type) VALUES (?, ?, ?)",
-            spanishWord, englishTranslation, wordType,
-        )
+					"INSERT INTO words (spanish, english_primary, english_translations, word_type, ) VALUES (?, ?, ?, ?)",
+            word.Spanish, word.EnglishPrimary, strings.Join(word.English_Translations, ","), word.WordType)
         return err
     } else if err != nil {
         return err
     }
     
     // Spanish word exists - always append the new translation
-    newEnglish := existingEnglish + "," + englishTranslation
+    newEnglish := existingEnglish + "," + word.EnglishTranslations
+
     _, err = tx.Exec(
-        "UPDATE words SET english = ? WHERE spanish = ?",
-        newEnglish, spanishWord,
+        "UPDATE words SET english_translations = ? WHERE spanish = ?",
+        newEnglish, word.Spanish,
     )
     return err
 }

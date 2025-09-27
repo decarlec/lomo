@@ -10,7 +10,7 @@ import (
 type Word struct {
 	Id              int64    `db:"id"`
 	Spanish         string   `db:"spanish"`
-	English         string   `db:"english"` // Stored as comma-separated string
+	EnglishTranslations       string   `db:"english_translations"` // Stored as comma-separated string
 	EnglishPrimary  string   `db:"english_primary"`
 	WordType        string   `db:"word_type"`
 	English_Translations []string `db:"-"` // Ignore in database; load manually
@@ -47,22 +47,22 @@ type History struct {
 }
 
 
-func GetWordByID(db *sql.DB, id int64) (*Word, error) {
+func GetWordByID(db *sql.DB, id int64) (Word, error) {
 	var word Word
-	query := `SELECT id, spanish, english, english_primary, word_type FROM words WHERE id = ?`
+	query := `SELECT id, spanish, english_translations, english_primary, word_type FROM words WHERE id = ?`
 	
 	err := db.QueryRow(query, id).Scan(
 		&word.Id,
 		&word.Spanish,
-		&word.English,
+		&word.EnglishTranslations,
 		&word.EnglishPrimary,
 		&word.WordType,
 	)
 	if err != nil {
-		return nil, err
+		return Word{}, err
 	}
 	
-	return &word, nil
+	return word, nil
 }
 
 func GetLessonByID(db *sql.DB, id int64) (*Lesson, error) {
@@ -85,7 +85,7 @@ func GetLessonByID(db *sql.DB, id int64) (*Lesson, error) {
 	// Build query with placeholders
 	placeholders := strings.Join(wordIDStrs, ",")
 	query := fmt.Sprintf(
-		"SELECT id, spanish, english, english_primary, word_type FROM words WHERE id IN (%s)",
+		"SELECT id, spanish, english_translations, english_primary, word_type FROM words WHERE id IN (%s)",
 		placeholders,
 	)
 
@@ -97,7 +97,9 @@ func GetLessonByID(db *sql.DB, id int64) (*Lesson, error) {
 
 	for rows.Next() {
 		var word Word
-		rows.Scan(&word.Id, &word.Spanish, &word.English, &word.EnglishPrimary, &word.WordType)
+		rows.Scan(&word.Id, &word.Spanish, &word.EnglishTranslations, &word.EnglishPrimary, &word.WordType)
+		//Need to process the English translations into a slice
+		word.English_Translations = strings.Split(word.EnglishTranslations, ",")
 		lesson.Words = append(lesson.Words, word)
 	}
 
@@ -139,5 +141,5 @@ func (u User) String() string {
 }
 
 func (s Word) String() string {
-	return fmt.Sprintf("Word:\n%d\n%s\n%s\n---\n", s.Id, s.Spanish, s.English)
+	return fmt.Sprintf("Word:\n%d\n%s\n%s\n---\n", s.Id, s.Spanish, s.EnglishPrimary)
 }

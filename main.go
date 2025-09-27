@@ -56,7 +56,7 @@ func (m AppModel) Init() tea.Cmd {
 func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case messages.SwitchToLessonMsg:
-		lessonModel, cmd := lesson.NewLessonModel(db, msg.Lesson)
+		lessonModel, cmd := lesson.NewLessonModel(db, &msg.Lesson)
 		m.currentModel = lessonModel
 		m.lesson = lessonModel
 		return m, cmd
