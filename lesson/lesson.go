@@ -1,25 +1,25 @@
 package lesson
 
 import (
-	"fmt"
 	"learn/spanish/messages"
-	"learn/spanish/pg_data"
+	"learn/spanish/models"
 	"log"
 	"math/rand"
 	"regexp"
 	"slices"
 	"strings"
+	"fmt"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/go-pg/pg/v10"
+	"database/sql"
 )
 
 // LessonModel displays flashcards for a lesson
 type LessonModel struct {
-	lesson    pg_data.Lesson
-	words     []pg_data.Word
+	lesson    models.Lesson
+	words     []models.Word
 	textInput textinput.Model
 	current   int
 }
@@ -35,19 +35,19 @@ var (
 )
 
 // NewLessonModel creates a LessonModel for a given lesson
-func NewLessonModel(db *pg.DB, lesson pg_data.Lesson) (*LessonModel, tea.Cmd) {
-	if db == nil {
-		return &LessonModel{}, tea.Quit
-	}
-
-	var words []pg_data.Word
-	err := db.Model(&words).Where("id IN (?)", pg.In(lesson.WordList)).Select()
+func NewLessonModel(db *sql.DB, lesson models.Lesson) (*LessonModel, tea.Cmd) {
+	lessonWords, err := models.GetLessonByID(db, lesson.Id)
 	if err != nil {
-		fmt.Printf("Error fetching words: %v\n", err)
-		return &LessonModel{}, tea.Quit
+		log.Fatalf("Error fetching lesson by ID: %v\n", err)
 	}
 
-	//shuffle words
+	for _, word := range lessonWords.Words {
+		englishTranslations := strings.Split(word.English, ",")
+		word.English_Translations = englishTranslations
+	}
+
+	// Shuffle words
+	words := lessonWords.Words
 	for i := range words {
 		j := rand.Intn(i + 1)
 		words[i], words[j] = words[j], words[i]
@@ -109,7 +109,7 @@ func (m LessonModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return messages.SwitchToMenuMsg{}
 			}
 		case tea.KeyEnter:
-			if m.textInput.Value() == currentWord.English_Primary || checkWord(m.textInput.Value(), currentWord.English) {
+			if m.textInput.Value() == currentWord.EnglishPrimary || checkWord(m.textInput.Value(), currentWord.English_Translations) {
 				currentWord.Correct = true
 				m.textInput.Placeholder = ""
 			} else {
@@ -140,7 +140,7 @@ func checkWord(input string, translations []string) bool {
 		//remove any bracketed descriptive text.
 		trimmed := re.ReplaceAllString(translation, "")
 		//Split any different words in the section
-		for _, section := range strings.Split(trimmed, " ") {
+		for section := range strings.SplitSeq(trimmed, " ") {
 			//remove any leading and trailing punctuation from the words
 			noComma := strings.Trim(section, ",;. ")
 			if noComma == input {
@@ -153,7 +153,7 @@ func checkWord(input string, translations []string) bool {
 	})
 }
 
-func getNumCorrect(words []pg_data.Word) int {
+func getNumCorrect(words []models.Word) int {
 	num := 0
 	for _, word := range words {
 		if word.Correct {
@@ -183,8 +183,8 @@ func (m LessonModel) View() string {
 	return style(s)
 }
 
-func translation(word pg_data.Word) string {
-	return fmt.Sprintf("Translation: %s \n\nOther translations:\n\t%s", word.English_Primary, strings.Join(word.English, "\n\t"))
+func translation(word models.Word) string {
+	return fmt.Sprintf("Translation: %s \n\nOther translations:\n\t%s", word.EnglishPrimary, strings.Join(word.English_Translations, "\n\t"))
 }
 
 func style(view string) string {
@@ -231,7 +231,7 @@ func peekStyle(view string) string {
 	return style.Render(view)
 }
 
-func headerStyle(view string) string {
-	var style = lipgloss.NewStyle().Foreground(header_color)
-	return style.Render(view)
-}
+// func headerStyle(view string) string {
+// 	var style = lipgloss.NewStyle().Foreground(header_color)
+// 	return style.Render(view)
+// }

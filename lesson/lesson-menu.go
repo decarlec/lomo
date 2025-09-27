@@ -2,32 +2,28 @@ package lesson
 
 import (
 	"fmt"
+	"log"
 	"learn/spanish/messages"
-	"learn/spanish/pg_data"
+	"learn/spanish/models"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/go-pg/pg/v10"
+	"database/sql"
 )
 
 // MenuModel displays a list of lessons
 type LessonMenuModel struct {
-	lessons []pg_data.Lesson
-	review  pg_data.Lesson
+	lessons []models.Lesson
+	review  models.Lesson
 	cursor  int
 }
 
 // NewMenuModel creates a MenuModel with lessons from the database
-func NewLessonMenuModel(db *pg.DB) (*LessonMenuModel, tea.Cmd) {
-	if db == nil {
-		return &LessonMenuModel{}, tea.Quit
-	}
+func NewLessonMenuModel(db *sql.DB) (*LessonMenuModel, tea.Cmd) {
+	lessons, err := models.GetAllLessons(db)
 
-	var lessons []pg_data.Lesson
-	err := db.Model(&lessons).Select()
 	if err != nil {
-		fmt.Printf("Error fetching lessons: %v\n", err)
-		return &LessonMenuModel{}, tea.Quit
+		log.Fatalf("Error fetching lessons: %v\n", err)
 	}
 
 	return &LessonMenuModel{lessons: lessons}, nil
@@ -74,9 +70,9 @@ func (m LessonMenuModel) View() string {
 		if i == 0 {
 			lessonStr = fmt.Sprintf("%s Review\n", cursor)
 		} else {
-			lessonStr = fmt.Sprintf("%s Lesson %d (%d/%d) \n", cursor, lesson.Id, getNumCorrect(lesson.Words), len(lesson.WordList))
+			lessonStr = fmt.Sprintf("%s Lesson %d (%d/%d) \n", cursor, lesson.Id, getNumCorrect(lesson.Words), len(lesson.WordIDs))
 		}
-		if getNumCorrect(lesson.Words) == len(lesson.WordList) {
+		if getNumCorrect(lesson.Words) == len(lesson.WordIDs) {
 			s += greenStyle(lessonStr)
 		} else {
 			s += lipgloss.NewStyle().Render(lessonStr)

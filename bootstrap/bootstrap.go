@@ -2,38 +2,267 @@ package main
 
 import (
 	"bufio"
-	"context"
+	"database/sql"
 	"encoding/xml"
 	"fmt"
-	"learn/spanish/pg_data"
+	"learn/spanish/models"
+	"log"
 	"os"
 	"strings"
 
-	"github.com/go-pg/pg/v10"
+	_ "github.com/mattn/go-sqlite3"
 )
 
-func main() {
-	db := pg.Connect(&pg.Options{
-		User:     "postgres",
-		Password: "example",
-		Database: "postgres",
-		Addr:     "localhost:5432", // Adjust if Docker exposes a different port
-	})
+type XmlDictionary struct {
+	Letters []XmlLetter `xml:"l"`
+}
 
-	_, err := db.Exec("SELECT 1")
+type XmlLetter struct {
+	Words []XmlWord `xml:"w"`
+}
+
+type XmlWord struct {
+	Spanish string `xml:"c"`
+	English string `xml:"d"`
+	Type    string `xml:"t"`
+}
+
+func main() {
+	// Initialize SQLite3 database
+	db, err := sql.Open("sqlite3", "../words.db")
 	if err != nil {
+		fmt.Printf("Failed to open database: %v\n", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	// Init databse schema
+	sqlFile, err := os.ReadFile("schema.sql")
+	if err != nil {
+		log.Fatalf("Failed to read schema file: %v", err)
+	}
+
+	_, err = db.Exec(string(sqlFile))
+	if err != nil {
+		log.Fatalf("Failed to execute schema: %v", err)
+	}
+
+	words := parseLessonWords("1000words.tsv")
+	processWords(db)
+	//First lesson will be a review of all words.
+	createLessons(db, words, 1000)
+	createLessons(db, words, 30)
+}
+//
+// Inserts database words.
+func processWords(db *sql.DB) error {
+	dat, err := os.ReadFile("es-en.xml")
+	if err != nil {
+		fmt.Printf("Error opening file: %v\n", err)
+		os.Exit(1)
+	}
+
+	askForConfirmation("This will put a bunch of words in the db, and take a while. Are you sure?")
+
+	var xDict XmlDictionary
+
+	if err := xml.Unmarshal([]byte(dat), &xDict); err != nil {
 		panic(err)
 	}
 
-	ProcessWords(db)
-	words := parseLessonWords("1000words.tsv")
-	//First lesson will be a review of all words.
-	CreateLessons(db, words, 1000)
-	CreateLessons(db, words, 30)
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	processedWords := make(map[string]models.Word)
+	// Pre-process words for multiple translations
+	for _, xLetter := range xDict.Letters {
+		for _, xWord := range xLetter.Words {
+			mappedWord, exists := processedWords[xWord.Spanish]
+			if exists == true {
+				mappedWord.English_Translations = append(mappedWord.English_Translations, xWord.English)
+			} else {
+				mappedWord.EnglishPrimary = xWord.English
+				mappedWord.English_Translations = []string{xWord.English}
+			}
+			mappedWord.Spanish = xWord.Spanish
+
+			processedWords[xWord.Spanish] = mappedWord
+		}
+	}
+
+	for _, word := range processedWords {
+		if word.Spanish == "hecho" {
+			log.Println(word.Spanish, word.English)
+		}
+			err := upsertWord(tx, word.Spanish, word.English, word.WordType)
+			if err != nil {
+				fmt.Println("UPSERT ERROR:", err)
+				return err
+			}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func upsertWord(tx *sql.Tx, spanishWord, englishTranslation, wordType string) error {
+    spanishWord = strings.TrimSpace(spanishWord)
+    englishTranslation = strings.TrimSpace(englishTranslation)
+		
+    if spanishWord == "" || englishTranslation == "" {
+        return nil // skip empty entries
+    }
+    var existingEnglish string
+    err := tx.QueryRow("SELECT english FROM words WHERE spanish = ?", spanishWord).Scan(&existingEnglish)
+    
+    if err == sql.ErrNoRows {
+        // Insert new word
+        _, err = tx.Exec(
+            "INSERT INTO words (spanish, english, word_type) VALUES (?, ?, ?)",
+            spanishWord, englishTranslation, wordType,
+        )
+        return err
+    } else if err != nil {
+        return err
+    }
+    
+    // Spanish word exists - always append the new translation
+    newEnglish := existingEnglish + "," + englishTranslation
+    _, err = tx.Exec(
+        "UPDATE words SET english = ? WHERE spanish = ?",
+        newEnglish, spanishWord,
+    )
+    return err
+}
+
+//Updated the primary translation for a word, inserting if it doesn't exist
+func updatePrimaryTranslation(db *sql.DB, spanishWord, translation string) error {
+	// Use a transaction to ensure atomicity
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Try to update first
+	res, err := tx.Exec("UPDATE words SET english = ? WHERE spanish = ?", translation, spanishWord)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		// Insert if not exists
+		_, err = tx.Exec("INSERT INTO words (spanish, english) VALUES (?, ?)", spanishWord, translation)
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+
+// CreateLessons creates lessons with 30 unique words each from the vocabulary table
+func createLessons(db *sql.DB, words []XmlWord, lessonSize int) error {
+	// First update the primary translations in the db
+	for _, word := range words {
+		err := updatePrimaryTranslation(db, word.Spanish, word.English)
+		if err != nil {
+			fmt.Printf("Failed to update translation for %s: %v\n", word.Spanish, err)
+		}
+	}
+
+	askForConfirmation("This will create lessons in the db, are you sure?")
+
+	// Begin transaction for all lesson inserts
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	for i, lessonWords := range chunkWords(words, lessonSize) {
+		// ...existing code to build spanishWords, query word IDs, etc...
+
+		// Prepare query to get word IDs
+		var spanishWords []string
+		for _, word := range lessonWords {
+			spanishWords = append(spanishWords, word.Spanish)
+		}
+		placeholders := strings.Repeat("?,", len(spanishWords))
+		placeholders = strings.TrimRight(placeholders, ",")
+		query := fmt.Sprintf("SELECT id, spanish FROM words WHERE spanish IN (%s)", placeholders)
+
+		args := make([]any, len(spanishWords))
+		for i, w := range spanishWords {
+			args[i] = w
+		}
+
+		rows, err := db.Query(query, args...)
+		if err != nil {
+			return fmt.Errorf("failed to query words: %w", err)
+		}
+		defer rows.Close()
+
+		var wordIDs []int64
+		for rows.Next() {
+			var id int64
+			var spanish string
+			if err := rows.Scan(&id, &spanish); err != nil {
+				return err
+			}
+			wordIDs = append(wordIDs, id)
+		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+
+		wordIDsStr := make([]string, len(wordIDs))
+		for i, id := range wordIDs {
+			wordIDsStr[i] = fmt.Sprintf("%d", id)
+		}
+		wordIDsCSV := strings.Join(wordIDsStr, ",")
+
+		// Insert lesson using transaction
+		res, err := tx.Exec("INSERT INTO lessons (word_ids) VALUES (?)", wordIDsCSV)
+		if err != nil {
+			return fmt.Errorf("failed to insert lesson %d: %w", i+1, err)
+		}
+		lessonID, _ := res.LastInsertId()
+		fmt.Printf("Created lesson ID=%d with %d words\n", lessonID, len(wordIDs))
+	}
+
+	// Commit transaction after all lessons are inserted
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Parse words from file (1000 words.txt) and return array of words
-func parseLessonWords(filePath string) []Word {
+func parseLessonWords(filePath string) []XmlWord {
 	// Open the TSV file
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -45,7 +274,7 @@ func parseLessonWords(filePath string) []Word {
 	// Read the file
 	scanner := bufio.NewScanner(file)
 	lineNumber := 0
-	var words []Word
+	var words []XmlWord
 
 	for scanner.Scan() {
 		lineNumber++
@@ -72,7 +301,7 @@ func parseLessonWords(filePath string) []Word {
 		}
 
 		// Create Word struct
-		word := Word{
+		word := XmlWord{
 			Spanish: strings.TrimSpace(fields[1]),
 			English: strings.TrimSpace(fields[2]),
 		}
@@ -101,154 +330,6 @@ func parseLessonWords(filePath string) []Word {
 	return words
 }
 
-// chunkWords splits a slice of words into chunks of lessonSize
-func chunkWords(words []Word, lessonSize int) [][]Word {
-	var chunks [][]Word
-	for i := 0; i < len(words); i += lessonSize {
-		end := min(i+lessonSize, len(words))
-		chunks = append(chunks, words[i:end])
-	}
-	return chunks
-}
-
-// CreateLessons creates lessons with 30 unique words each from the vocabulary table
-func CreateLessons(db *pg.DB, words []Word, lessonSize int) error {
-	//first update the primary translations in the db
-	for _, word := range words {
-		updatePrimaryTranslation(db, word.Spanish, word.English)
-	}
-
-	askForConfirmation("This will create lessons in the db, are you sure?")
-	// Create lessons
-	for i, lessonWords := range chunkWords(words, lessonSize) {
-		//Get the spanish words for the query
-		var spanishWords []string
-		for _, word := range lessonWords {
-			spanishWords = append(spanishWords, word.Spanish)
-		}
-
-		//Get the words from the db
-		var dbWords []*pg_data.Word
-		err := db.Model((&dbWords)).
-			Where("spanish IN (?)", pg.In(spanishWords)).
-			Select()
-
-		if len(dbWords) > 0 {
-			fmt.Println(spanishWords)
-			fmt.Println(dbWords)
-		}
-
-		if err != nil {
-			panic(err)
-		}
-
-		//Convert words to a word id list
-		wordList := []int64{}
-		for _, dbWord := range dbWords {
-			fmt.Println(dbWord.Spanish)
-			wordList = append(wordList, dbWord.Id)
-		}
-
-		// Create lesson with word ids
-		lesson := &pg_data.Lesson{
-			WordList: wordList,
-		}
-
-		// Insert lesson into database
-		_, err = db.Model(lesson).Insert()
-		if err != nil {
-			return fmt.Errorf("failed to insert lesson %d: %w", i+1, err)
-		}
-
-		fmt.Printf("Created lesson ID=%d with %d words\n", lesson.Id, len(lesson.WordList))
-	}
-
-	return nil
-}
-
-type Dictionary struct {
-	Letters []Letter `xml:"l"`
-}
-
-type Letter struct {
-	Words []Word `xml:"w"`
-}
-
-type Word struct {
-	Spanish string `xml:"c"`
-	English string `xml:"d"`
-	Type    string `xml:"t"`
-}
-
-// UpsertWord checks if a Spanish word exists, creates it if not, or appends English translation if it does
-func upsertWord(db *pg.DB, spanishWord, englishTranslation, wordType string) error {
-	// Use a transaction to ensure atomicity
-	return db.RunInTransaction(context.Background(), func(tx *pg.Tx) error {
-		// Attempt to insert or update using ON CONFLICT
-		query := `
-			INSERT INTO words (spanish, english, word_type)
-			VALUES (?, ARRAY[?]::text[], ?)
-			ON CONFLICT (spanish) DO UPDATE
-			SET english = array_append(words.english, ?)
-			RETURNING spanish
-		`
-		var resultSpanish pg_data.Word
-		_, err := tx.QueryOne(&resultSpanish, query, spanishWord, englishTranslation, wordType, englishTranslation)
-		if err != nil {
-			panic(err)
-		}
-		return nil
-	})
-}
-
-func updatePrimaryTranslation(db *pg.DB, spanishWord, translation string) error {
-	// Use a transaction to ensure atomicity
-	return db.RunInTransaction(context.Background(), func(tx *pg.Tx) error {
-		// Attempt to insert or update using ON CONFLICT
-		query := `
-			INSERT INTO words (spanish, english_primary)
-			VALUES (?, ?)
-			ON CONFLICT (spanish) DO UPDATE
-			SET english_primary = ?
-			RETURNING spanish
-		`
-		var resultSpanish pg_data.Word
-		_, err := tx.QueryOne(&resultSpanish, query, spanishWord, translation, translation)
-		if err != nil {
-			panic(err)
-		}
-		return nil
-	})
-}
-
-// Inserts database words.
-func ProcessWords(db *pg.DB) error {
-	dat, err := os.ReadFile("es-en.xml")
-	if err != nil {
-		fmt.Printf("Error opening file: %v\n", err)
-		os.Exit(1)
-	}
-
-	askForConfirmation("This will put a bunch of words in the db, and take a while. Are you sure?")
-
-	var dict Dictionary
-
-	if err := xml.Unmarshal([]byte(dat), &dict); err != nil {
-		panic(err)
-	}
-	for _, letter := range dict.Letters {
-		fmt.Println(letter.Words[0])
-		for _, word := range letter.Words {
-			// Assuming word.English is a slice, take first
-			err := upsertWord(db, word.Spanish, word.English, word.Type)
-			if err != nil {
-				fmt.Println("UPSERT ERROR")
-			}
-		}
-	}
-	return nil
-}
-
 func askForConfirmation(s string) bool {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Printf("%s [y/N]: ", s)
@@ -261,4 +342,14 @@ func askForConfirmation(s string) bool {
 		return true
 	}
 	return false
+}
+
+// chunkWords splits a slice of words into chunks of lessonSize
+func chunkWords(words []XmlWord, lessonSize int) [][]XmlWord {
+	var chunks [][]XmlWord
+	for i := 0; i < len(words); i += lessonSize {
+		end := min(i+lessonSize, len(words))
+		chunks = append(chunks, words[i:end])
+	}
+	return chunks
 }

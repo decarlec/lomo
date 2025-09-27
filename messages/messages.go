@@ -1,14 +1,14 @@
 package messages
 
-import "learn/spanish/pg_data"
+import "learn/spanish/models"
 
 // Msg types for transitions
 type SwitchToLessonMsg struct {
-	Lesson pg_data.Lesson
+	Lesson models.Lesson
 }
 
 type SwitchToReviewMsg struct {
-	Lesson pg_data.Lesson
+	Lesson models.Lesson
 }
 
 type SwitchToMenuMsg struct{}
