@@ -57,9 +57,17 @@ func main() {
 	//Processes words from both files
 	processWords(db, words)
 
-	//First lesson will be a review of all words.
-	createLessons(db, words, 1000)
+	//Create all lessons
 	createLessons(db, words, 30)
+
+	//Delete words with no lessons
+	deleteOrphanWords(db)
+}
+
+// Delete words that have no primary translation 
+func deleteOrphanWords(db *sql.DB) error {
+	_, err := db.Exec("delete from words where english_primary is null or english_primary = ''")
+	return err
 }
 
 // Inserts database words.

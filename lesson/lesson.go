@@ -22,6 +22,7 @@ type LessonModel struct {
 	lesson    models.Lesson
 	words     []models.Word
 	textInput textinput.Model
+	lessonType string
 	current   int
 }
 
@@ -35,38 +36,49 @@ var (
 	correct_color     = lipgloss.Color("#03fc56")
 )
 
-const SHUFFLE=false
+const SHUFFLE = false
+
+// Special case lesson model for Review lessons
+func NewReviewLessonModel(lesson *models.Lesson) (*LessonModel, tea.Cmd) {
+	words := lesson.Words
+		// Always Shuffle words
+		for i := range words {
+			j := rand.Intn(i + 1)
+			words[i], words[j] = words[j], words[i]
+		}
+
+	ti := getLessonInput()
+	return &LessonModel{
+		lesson:    *lesson,
+		words:     words,
+		textInput: ti,
+		lessonType: "review",
+	}, nil
+
+}
 
 // NewLessonModel creates a LessonModel for a given lesson
-func NewLessonModel(db *sql.DB, lesson *models.Lesson) (*LessonModel, tea.Cmd) {
-	lesson, err := models.GetLessonByID(db, lesson.Id)
+func NewLessonModel(db *sql.DB, lessonId int64) (*LessonModel, tea.Cmd) {
+	lesson, err := models.GetLessonByID(db, lessonId)
 	if err != nil {
 		log.Fatalf("Error fetching lesson by ID: %v\n", err)
 	}
 
 	words := lesson.Words
 	if SHUFFLE {
-	// Shuffle words
-	for i := range words {
-		j := rand.Intn(i + 1)
-		words[i], words[j] = words[j], words[i]
+		// Shuffle words
+		for i := range words {
+			j := rand.Intn(i + 1)
+			words[i], words[j] = words[j], words[i]
+		}
 	}
-}
 
-	ti := textinput.New()
-	ti.Focus()
-	ti.CharLimit = 156
-	ti.Width = 10
-	var inputStyle = lipgloss.NewStyle().Foreground(input_color).Background(bg)
-	ti.PromptStyle = inputStyle
-	ti.TextStyle = inputStyle
-	ti.Cursor.Style = inputStyle
-	ti.PlaceholderStyle = inputStyle
-
+	ti := getLessonInput()
 	return &LessonModel{
 		lesson:    *lesson,
-		words: words,
+		words:     words,
 		textInput: ti,
+		lessonType: "normal",
 	}, nil
 }
 
@@ -171,18 +183,44 @@ func (m LessonModel) View() string {
 	}
 
 	word := m.words[m.current]
-	s := fmt.Sprintf("Lesson %d - Word %d/%d\n\n", m.lesson.Id, getNumCorrect(m.words), len(m.words))
+	s := ""
+	//Title bar
+	if m.lessonType == "review" {
+		s += fmt.Sprintf("Review - Word %d/%d\n\n", getNumCorrect(m.words), len(m.words))
+	} else {
+		s += fmt.Sprintf("Lesson %d - Word %d/%d\n\n", m.lesson.Id, getNumCorrect(m.words), len(m.words))
+	}
+
+	// Word display
 	s += "Spanish: "
 	s += lipgloss.NewStyle().Bold(true).UnsetPadding().Foreground(target_word_color).Render(word.Spanish)
 	s += "\n"
 	s += m.textInput.View() + "\n"
+
+	// Results
 	if word.Correct {
 		s += correctStyle("Correct! \n" + translation(word))
 	} else if word.Peek {
 		s += peekStyle(translation(word))
 	}
+
+	//Help text
 	s += lipgloss.NewStyle().PaddingTop(1).UnsetBold().Render("\nPress delete to see answer, left/right to navigate, Ctrl+b to go back, Esc to quit.")
 	return style(s)
+}
+
+
+func getLessonInput() textinput.Model {
+	ti := textinput.New()
+	ti.Focus()
+	ti.CharLimit = 156
+	ti.Width = 10
+	var inputStyle = lipgloss.NewStyle().Foreground(input_color).Background(bg)
+	ti.PromptStyle = inputStyle
+	ti.TextStyle = inputStyle
+	ti.Cursor.Style = inputStyle
+	ti.PlaceholderStyle = inputStyle
+	return ti
 }
 
 func translation(word models.Word) string {

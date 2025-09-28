@@ -66,6 +66,28 @@ func GetWordByID(db *sql.DB, id int64) (Word, error) {
 	return word, nil
 }
 
+func GetAllWords(db *sql.DB) ([]Word, error) {
+	query := "SELECT id, spanish, english_translations, english_primary, word_type FROM words"
+
+	words := []Word{}
+
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var word Word
+		rows.Scan(&word.Id, &word.Spanish, &word.EnglishTranslations, &word.EnglishPrimary, &word.WordType)
+		//Need to process the English translations into a slice
+		word.English_Translations = strings.Split(word.EnglishTranslations, ",")
+		words = append(words, word)
+	}
+
+	return words, nil
+}
+
 func GetLessonByID(db *sql.DB, id int64) (*Lesson, error) {
 	var lesson Lesson
 

@@ -4,7 +4,7 @@ import "learn/spanish/models"
 
 // Msg types for transitions
 type SwitchToLessonMsg struct {
-	Lesson models.Lesson
+	LessonId int64
 }
 
 type SwitchToReviewMsg struct {

@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"learn/spanish/lesson"
 	"learn/spanish/messages"
+	"learn/spanish/models"
 	"log"
 	"os"
 
 	"database/sql"
+
 	tea "github.com/charmbracelet/bubbletea"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -75,7 +77,7 @@ func (m AppModel) Init() tea.Cmd {
 func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case messages.SwitchToLessonMsg:
-		lessonModel, cmd := lesson.NewLessonModel(db, &msg.Lesson)
+		lessonModel, cmd := lesson.NewLessonModel(db, msg.LessonId)
 		m.currentModel = lessonModel
 		m.lesson = lessonModel
 		return m, cmd
@@ -163,7 +165,10 @@ func (m MainMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch m.cursor {
 			case 0:
 				return lesson.NewLessonMenuModel(db)
+			case 1:
+				return lesson.NewReviewLessonModel(getReviewLesson())
 			}
+
 		}
 	}
 	return m, nil
@@ -191,4 +196,14 @@ func (m MainMenuModel) View() string {
 
 	// Send the UI for rendering
 	return s
+}
+
+
+func getReviewLesson() *models.Lesson {
+words, err := models.GetAllWords(db)
+	if err != nil {
+		log.Fatalf("Error fetching all words for review lesson: %v\n", err)
+	}
+
+	return &models.Lesson{Words: words}
 }
