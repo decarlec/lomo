@@ -1,7 +1,7 @@
 *Lomo*
 ___
 
-![Lomo App](image-path assets/example.png "Lomo screenshot")
+![Lomo App](assets/example.png "Lomo screenshot")
 
 Lomo is a simple language learning tool built for the purpose of language learning. It's a simple way to start learning a language, and should be to augment language learning by repeated exposure to the most common words in the language to help you bootstrap your vocabulary so you can move onto deeper learning. 
 
