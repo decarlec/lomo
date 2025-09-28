@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 
 	"database/sql"
@@ -44,20 +43,6 @@ func NewLessonModel(db *sql.DB, lesson *models.Lesson) (*LessonModel, tea.Cmd) {
 	if err != nil {
 		log.Fatalf("Error fetching lesson by ID: %v\n", err)
 	}
-
-	for _, wordID := range strings.Split(lesson.WordIDs, ",") {
-		wordIdInt, err := strconv.ParseInt(wordID, 10, 64)
-		if err != nil {
-			log.Fatalf("Error parsing word ID '%s': %v\n", wordID, err)
-		}
-		word, err := models.GetWordByID(db, wordIdInt);
-		if err != nil {
-			log.Fatalf("Error fetching word by ID %d: %v\n", wordIdInt, err)
-		}
-
-		lesson.Words = append(lesson.Words, word)
-	}
-
 
 	words := lesson.Words
 	if SHUFFLE {
