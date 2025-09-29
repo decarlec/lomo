@@ -19,11 +19,11 @@ import (
 
 // LessonModel displays flashcards for a lesson
 type LessonModel struct {
-	lesson    models.Lesson
-	words     []models.Word
-	textInput textinput.Model
+	lesson     models.Lesson
+	words      []models.Word
+	textInput  textinput.Model
 	lessonType string
-	current   int
+	current    int
 }
 
 var (
@@ -41,17 +41,17 @@ const SHUFFLE = false
 // Special case lesson model for Review lessons
 func NewReviewLessonModel(lesson *models.Lesson) (*LessonModel, tea.Cmd) {
 	words := lesson.Words
-		// Always Shuffle words
-		for i := range words {
-			j := rand.Intn(i + 1)
-			words[i], words[j] = words[j], words[i]
-		}
+	// Always Shuffle words
+	for i := range words {
+		j := rand.Intn(i + 1)
+		words[i], words[j] = words[j], words[i]
+	}
 
 	ti := getLessonInput()
 	return &LessonModel{
-		lesson:    *lesson,
-		words:     words,
-		textInput: ti,
+		lesson:     *lesson,
+		words:      words,
+		textInput:  ti,
 		lessonType: "review",
 	}, nil
 
@@ -75,9 +75,9 @@ func NewLessonModel(db *sql.DB, lessonId int64) (*LessonModel, tea.Cmd) {
 
 	ti := getLessonInput()
 	return &LessonModel{
-		lesson:    *lesson,
-		words:     words,
-		textInput: ti,
+		lesson:     *lesson,
+		words:      words,
+		textInput:  ti,
 		lessonType: "normal",
 	}, nil
 }
@@ -96,6 +96,11 @@ func (m LessonModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+
+		if msg.String() == "/" {
+			currentWord.Peek = !currentWord.Peek
+			return m, nil
+		}
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
@@ -135,11 +140,8 @@ func (m LessonModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyDelete:
 			currentWord.Peek = true
 			return m, nil
-		case tea.KeyShiftDown:
+		case tea.KeyCtrlQuestionMark:
 			currentWord.Peek = true
-			return m, nil
-		case tea.KeyShiftUp:
-			currentWord.Peek = false
 			return m, nil
 		}
 
@@ -214,7 +216,6 @@ func (m LessonModel) View() string {
 	s += lipgloss.NewStyle().PaddingTop(1).UnsetBold().Render("\nPress delete to see answer, left/right to navigate, Ctrl+b to go back, Esc to quit.")
 	return style(s)
 }
-
 
 func getLessonInput() textinput.Model {
 	ti := textinput.New()
