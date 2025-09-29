@@ -106,9 +106,7 @@ func (m LessonModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case tea.KeyEsc:
-			return m, func() tea.Msg {
-				return messages.SwitchToMenuMsg{}
-			}
+			return m, tea.Quit
 		//Scroll words
 		case tea.KeyRight:
 			if m.current < len(m.words)-1 {
@@ -137,12 +135,6 @@ func (m LessonModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.textInput.PlaceholderStyle.Foreground(lipgloss.Color(input_wrong))
 				m.textInput.SetValue("")
 			}
-		case tea.KeyDelete:
-			currentWord.Peek = true
-			return m, nil
-		case tea.KeyCtrlQuestionMark:
-			currentWord.Peek = true
-			return m, nil
 		}
 
 		//handle actual text input
@@ -213,7 +205,7 @@ func (m LessonModel) View() string {
 	}
 
 	//Help text
-	s += lipgloss.NewStyle().PaddingTop(1).UnsetBold().Render("\nPress delete to see answer, left/right to navigate, Ctrl+b to go back, Esc to quit.")
+	s += lipgloss.NewStyle().PaddingTop(1).UnsetBold().Render("\nPress the / key to see answer, left/right to navigate, Ctrl+b to go back, Esc to quit.")
 	return style(s)
 }
 
