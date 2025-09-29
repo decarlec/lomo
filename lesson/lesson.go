@@ -137,8 +137,10 @@ func (m LessonModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case tea.KeyShiftDown:
 			currentWord.Peek = true
+			return m, nil
 		case tea.KeyShiftUp:
 			currentWord.Peek = false
+			return m, nil
 		}
 
 		//handle actual text input
