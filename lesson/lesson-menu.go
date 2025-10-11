@@ -69,7 +69,7 @@ func (m LessonMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m LessonMenuModel) View() string {
 	rows := make([][]string, len(m.lessons))
-	for lessonIndex, lesson := range m.lessons[0:5] {
+	for lessonIndex, lesson := range m.lessons {
 		cursor := "  "
 		if m.cursor == lessonIndex {
 			cursor = "=>"
