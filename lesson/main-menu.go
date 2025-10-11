@@ -79,9 +79,7 @@ func (m MainMenuModel) View() string {
 	var message = lipgloss.NewStyle().Foreground(lipgloss.Color(orange)).Bold(true).Align(lipgloss.Center).Render(
 `
 
-	the language learning cli app!
-
-	What would you like to do?
+	...the language learning TUI (too-ee) app!
 `)
 
 	s := welcome + logo + message + "\n"
@@ -102,7 +100,6 @@ func (m MainMenuModel) View() string {
 		Bold(true).
 		Foreground(lipgloss.Color(cyan)).
 		PaddingTop(2).
-		PaddingBottom(2).
 		PaddingLeft(4).
 		Width(100).
 		BorderStyle(lipgloss.RoundedBorder()).
@@ -111,7 +108,7 @@ func (m MainMenuModel) View() string {
 
 	s = style.Render(s)
 
-	var exit = lipgloss.NewStyle().Foreground(lipgloss.Color(purple)).Render("\nPress q to quit.\n")
+	var exit = "\nPress q to quit.\n"
 
 	s += exit
 
