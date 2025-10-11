@@ -49,6 +49,11 @@ func (m LessonMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
+		case "esc":
+			return m, func() tea.Msg {
+				log.Printf("Switching to lesson %d\n", m.lessons[m.cursor].Id)
+					return messages.SwitchToMenuMsg{}
+				}
 		case "up", "k":
 			if m.cursor > 0 {
 				m.cursor--

@@ -2,12 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/decarlec/lomo/lesson"
-	"github.com/decarlec/lomo/db"
-	"github.com/decarlec/lomo/messages"
-	"github.com/decarlec/lomo/models"
-	"log"
 	"os"
+
+	"github.com/decarlec/lomo/db"
+	"github.com/decarlec/lomo/lesson"
+	"github.com/decarlec/lomo/messages"
 
 	tea "github.com/charmbracelet/bubbletea"
 	_ "github.com/mattn/go-sqlite3"
@@ -16,15 +15,11 @@ import (
 // AppModel is the parent model managing sub-models
 type AppModel struct {
 	currentModel tea.Model
-	mainMenu     *MainMenuModel
+	mainMenu     *lesson.MainMenuModel
 	lessonMenu   *lesson.LessonMenuModel
 	lesson       *lesson.LessonModel
-}
-
-type MainMenuModel struct {
-	choices  []string         // lesson ids
-	cursor   int              // which to-do list item our cursor is pointing at
-	selected map[int]struct{} // which to-do items are selected
+	lessonsInProgress []lesson.LessonModel
+	review *lesson.LessonModel
 }
 
 // AppModel methods
@@ -35,6 +30,15 @@ func (m AppModel) Init() tea.Cmd {
 func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case messages.SwitchToLessonMsg:
+		//Select in progress lesson if possible
+		for _, l := range m.lessonsInProgress {
+			if l.Lesson.Id == msg.LessonId {
+				m.lessonsInProgress = append(m.lessonsInProgress, l)
+				m.lesson = &l
+				m.currentModel = m.lesson
+				return m, nil
+			}
+		}
 		lessonModel, cmd := lesson.NewLessonModel(msg.LessonId)
 		m.currentModel = lessonModel
 		m.lesson = lessonModel
@@ -42,6 +46,16 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.SwitchToMenuMsg:
 		m.currentModel = m.mainMenu
 		return m, nil
+	case messages.SwitchToLessonMenuMsg:
+		if m.lessonMenu == nil {
+			m.lessonMenu, _ = lesson.NewLessonMenuModel()
+		}
+		m.currentModel = m.lessonMenu
+	case messages.SwitchToReviewMsg:
+		if m.review == nil {
+			m.review, _ = lesson.NewReviewLessonModel(&msg.Lesson)
+		}
+		m.currentModel = m.review
 	}
 	var cmd tea.Cmd
 	m.currentModel, cmd = m.currentModel.Update(msg)
@@ -81,87 +95,15 @@ func main() {
 	}
 }
 
-func initialModel() MainMenuModel {
-	return MainMenuModel{
+func initialModel() lesson.MainMenuModel {
+	return lesson.MainMenuModel{
 		// Our to-do list is a grocery list
-		choices: []string{"Lessons", "Review"},
+		Choices: []string{"Lessons", "Review"},
 
 		// A map which indicates which choices are selected. We're using
 		// the  map like a mathematical set. The keys refer to the indexes
 		// of the `choices` slice, above.
-		selected: make(map[int]struct{}),
+		Selected: make(map[int]struct{}),
 	}
 }
 
-func (m MainMenuModel) Init() tea.Cmd {
-	// Just return `nil`, which means "no I/O right now, please."
-	return nil
-}
-
-func (m MainMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
-			db.DB.Close()
-			return m, tea.Quit
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case "down", "j":
-			if m.cursor < len(m.choices)-1 {
-				m.cursor++
-			}
-		case "enter", " ":
-			_, ok := m.selected[m.cursor]
-			if ok {
-				delete(m.selected, m.cursor)
-			} else {
-				m.selected[m.cursor] = struct{}{}
-			}
-			switch m.cursor {
-			case 0:
-				return lesson.NewLessonMenuModel()
-			case 1:
-				return lesson.NewReviewLessonModel(getReviewLesson())
-			}
-
-		}
-	}
-	return m, nil
-}
-
-func (m MainMenuModel) View() string {
-	// The header
-	s := "Welcome To Lomo, the language learning cli app! \n\nWhat would you like to do?\n"
-
-	// Iterate over our choices
-	for i, choice := range m.choices {
-
-		// Is the cursor pointing at this choice?
-		cursor := " " // no cursor
-		if m.cursor == i {
-			cursor = ">" // cursor!
-		}
-
-		// Render the row
-		s += fmt.Sprintf("%s %s\n", cursor, choice)
-	}
-
-	// The footer
-	s += "\nPress q to quit.\n"
-
-	// Send the UI for rendering
-	return s
-}
-
-
-func getReviewLesson() *models.Lesson {
-words, err := models.GetAllWords()
-	if err != nil {
-		log.Fatalf("Error fetching all words for review lesson: %v\n", err)
-	}
-
-	return &models.Lesson{Words: words}
-}

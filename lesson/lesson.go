@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"github.com/decarlec/lomo/models"
+	"github.com/decarlec/lomo/messages"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -16,7 +17,7 @@ import (
 
 // LessonModel displays flashcards for a lesson
 type LessonModel struct {
-	lesson     models.Lesson
+	Lesson     models.Lesson
 	words      []models.Word
 	textInput  textinput.Model
 	lessonType string
@@ -37,7 +38,7 @@ func NewReviewLessonModel(lesson *models.Lesson) (*LessonModel, tea.Cmd) {
 
 	ti := getLessonInput()
 	return &LessonModel{
-		lesson:     *lesson,
+		Lesson:     *lesson,
 		words:      words,
 		textInput:  ti,
 		lessonType: "review",
@@ -63,7 +64,7 @@ func NewLessonModel(lessonId int64) (*LessonModel, tea.Cmd) {
 
 	ti := getLessonInput()
 	return &LessonModel{
-		lesson:     *lesson,
+		Lesson:     *lesson,
 		words:      words,
 		textInput:  ti,
 		lessonType: "normal",
@@ -93,8 +94,6 @@ func (m LessonModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 
-		case tea.KeyEsc:
-			return m, tea.Quit
 		//Scroll words
 		case tea.KeyRight:
 			if m.current < len(m.words)-1 {
@@ -109,11 +108,17 @@ func (m LessonModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		//Go back
-		case tea.KeyCtrlB:
+		case tea.KeyEsc:
+			if m.lessonType == "review" {
 			return m, func() tea.Msg {
-				//TODO: go back to lesson menu here
-				return nil
+				log.Printf("Switching to main menu\n")
+					return messages.SwitchToMenuMsg{}
+				}
 			}
+			return m, func() tea.Msg {
+				log.Printf("Switching to lesson menu\n")
+					return messages.SwitchToLessonMenuMsg{}
+				}
 		case tea.KeyEnter:
 			if m.textInput.Value() == currentWord.EnglishPrimary || checkWord(m.textInput.Value(), currentWord.English_Translations) {
 				currentWord.Correct = true
@@ -177,7 +182,7 @@ func (m LessonModel) View() string {
 	if m.lessonType == "review" {
 		s += fmt.Sprintf("Review - Word %d/%d\n\n", getNumCorrect(m.words), len(m.words))
 	} else {
-		s += fmt.Sprintf("Lesson %d - Word %d/%d\n\n", m.lesson.Id, getNumCorrect(m.words), len(m.words))
+		s += fmt.Sprintf("Lesson %d - Word %d/%d\n\n", m.Lesson.Id, getNumCorrect(m.words), len(m.words))
 	}
 
 	// Word display
@@ -194,7 +199,7 @@ func (m LessonModel) View() string {
 	}
 
 	//Help text
-	s += lipgloss.NewStyle().PaddingTop(1).UnsetBold().Render("\nPress the / key to see answer, left/right to navigate, Ctrl+b to go back, Esc to quit.")
+	s += lipgloss.NewStyle().PaddingTop(1).UnsetBold().Render("\nPress the / key to see answer, left/right to navigate, Esc go back, Ctrl+C to quit.")
 	return style(s)
 }
 
@@ -259,7 +264,3 @@ func peekStyle(view string) string {
 	return style.Render(view)
 }
 
-// func headerStyle(view string) string {
-// 	var style = lipgloss.NewStyle().Foreground(header_color)
-// 	return style.Render(view)
-// }

@@ -13,6 +13,7 @@ import (
 //go:embed words.db
 var embeddedDB embed.FS
 
+// The public db instance
 var DB *sql.DB
 
 // initDB initializes the database connection
