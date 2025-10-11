@@ -29,7 +29,7 @@ type LessonModel struct {
 var (
 	bg                = lipgloss.Color("#000000")
 	default_text      = lipgloss.Color("#7168f2")
-	header_color      = lipgloss.Color("#928ced")
+	//header_color      = lipgloss.Color("#928ced")
 	input_color       = lipgloss.Color("#db9a3d")
 	input_wrong       = lipgloss.Color("#573c17")
 	target_word_color = lipgloss.Color("#03fcc6")

@@ -11,6 +11,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
 )
 
 // MenuModel displays a list of lessons
@@ -19,16 +20,26 @@ type LessonMenuModel struct {
 	cursor  int
 }
 
+var (
+    purple    = lipgloss.Color("99")
+    gray      = lipgloss.Color("245")
+    lightGray = lipgloss.Color("241")
+
+    headerStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Bold(true).Align(lipgloss.Center)
+    cellStyle    = lipgloss.NewStyle().Padding(0, 1).Width(14)
+    oddRowStyle  = cellStyle.Foreground(gray)
+    evenRowStyle = cellStyle.Foreground(lightGray)
+)
+
 // NewMenuModel creates a MenuModel with lessons from the database
 func NewLessonMenuModel(db *sql.DB) (*LessonMenuModel, tea.Cmd) {
 	lessons, err := models.GetAllLessons(db)
 
 	if err != nil {
 		log.Fatalf("Error fetching lessons: %v\n", err)
-	}
-
+	}	
 	log.Printf("Fetched %d lessons from database\n", len(lessons))
-	return &LessonMenuModel{lessons: lessons}, nil
+	return &LessonMenuModel{lessons: lessons }, nil
 }
 
 // MenuModel methods
@@ -51,32 +62,39 @@ func (m LessonMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor++
 			}
 		case "enter":
-			if m.cursor < len(m.lessons) {
-				return m, func() tea.Msg {
-					log.Printf("Switching to lesson %d\n", m.lessons[m.cursor].Id)
+			return m, func() tea.Msg {
+				log.Printf("Switching to lesson %d\n", m.lessons[m.cursor].Id)
 					return messages.SwitchToLessonMsg{LessonId: m.lessons[m.cursor].Id}
 				}
-			}
 		}
 	}
 	return m, nil
 }
 
 func (m LessonMenuModel) View() string {
-	s := "Select a Lesson:\n\n"
-	for i, lesson := range m.lessons {
-		cursor := " "
-		if m.cursor == i {
-			cursor = ">"
+	rows := make([][]string, len(m.lessons))
+	for lessonIndex, lesson := range m.lessons[0:5] {
+		cursor := "  "
+		if m.cursor == lessonIndex {
+			cursor = "=>"
 		}
-		var lessonStr string
-		lessonStr = fmt.Sprintf("%s Lesson %d (%d/%d) \n", cursor, lesson.Id, getNumCorrect(lesson.Words), len(strings.Split(lesson.WordIDs, ",")))
-		if getNumCorrect(lesson.Words) == len(lesson.WordIDs) {
-			s += greenStyle(lessonStr)
-		} else {
-			s += lipgloss.NewStyle().Render(lessonStr)
-		}
+		rows[lessonIndex] = []string{fmt.Sprintf("%s Lesson %d", cursor, lesson.Id), fmt.Sprintf("| %d/%d", getNumCorrect(lesson.Words), len(strings.Split(lesson.WordIDs, ",")))}
 	}
-	s += "\nPress q to quit.\n"
-	return s
+	table := table.New().
+    Border(lipgloss.NormalBorder()).
+    BorderStyle(lipgloss.NewStyle().Foreground(purple)).
+    StyleFunc(func(row, col int) lipgloss.Style {
+        switch {
+        case row == table.HeaderRow:
+            return headerStyle
+        case row%2 == 0:
+            return evenRowStyle
+        default:
+            return oddRowStyle
+        }
+    }).
+    Headers("Lesson", "Progress").
+    Rows(rows...).Render()
+
+		return table + "\nPress q to quit.\n"
 }
