@@ -5,10 +5,11 @@ import (
 	"database/sql"
 	"encoding/xml"
 	"fmt"
-	"learn/spanish/models"
+
 	"os"
 	"strings"
 
+	"github.com/decarlec/lomo/models"
 	_ "github.com/mattn/go-sqlite3"
 )
 

@@ -2,15 +2,12 @@ package lesson
 
 import (
 	"fmt"
-	"learn/spanish/messages"
-	"learn/spanish/models"
 	"log"
 	"math/rand"
 	"regexp"
 	"slices"
 	"strings"
-
-	"database/sql"
+	"github.com/decarlec/lomo/models"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -26,15 +23,6 @@ type LessonModel struct {
 	current    int
 }
 
-var (
-	bg                = lipgloss.Color("#000000")
-	default_text      = lipgloss.Color("#7168f2")
-	//header_color      = lipgloss.Color("#928ced")
-	input_color       = lipgloss.Color("#db9a3d")
-	input_wrong       = lipgloss.Color("#573c17")
-	target_word_color = lipgloss.Color("#03fcc6")
-	correct_color     = lipgloss.Color("#03fc56")
-)
 
 const SHUFFLE = false
 
@@ -58,8 +46,8 @@ func NewReviewLessonModel(lesson *models.Lesson) (*LessonModel, tea.Cmd) {
 }
 
 // NewLessonModel creates a LessonModel for a given lesson
-func NewLessonModel(db *sql.DB, lessonId int64) (*LessonModel, tea.Cmd) {
-	lesson, err := models.GetLessonByID(db, lessonId)
+func NewLessonModel(lessonId int64) (*LessonModel, tea.Cmd) {
+	lesson, err := models.GetLessonByID(lessonId)
 	if err != nil {
 		log.Fatalf("Error fetching lesson by ID: %v\n", err)
 	}
@@ -123,7 +111,8 @@ func (m LessonModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		//Go back
 		case tea.KeyCtrlB:
 			return m, func() tea.Msg {
-				return messages.SwitchToMenuMsg{}
+				//TODO: go back to lesson menu here
+				return nil
 			}
 		case tea.KeyEnter:
 			if m.textInput.Value() == currentWord.EnglishPrimary || checkWord(m.textInput.Value(), currentWord.English_Translations) {
@@ -193,7 +182,7 @@ func (m LessonModel) View() string {
 
 	// Word display
 	s += "Spanish: "
-	s += lipgloss.NewStyle().Bold(true).UnsetPadding().Foreground(target_word_color).Render(word.Spanish)
+	s += lipgloss.NewStyle().Bold(true).UnsetPadding().Foreground(cyan).Render(word.Spanish)
 	s += "\n"
 	s += m.textInput.View() + "\n"
 
@@ -214,7 +203,7 @@ func getLessonInput() textinput.Model {
 	ti.Focus()
 	ti.CharLimit = 156
 	ti.Width = 10
-	var inputStyle = lipgloss.NewStyle().Foreground(input_color).Background(bg)
+	var inputStyle = lipgloss.NewStyle().Foreground(orange).Background(bg)
 	ti.PromptStyle = inputStyle
 	ti.TextStyle = inputStyle
 	ti.Cursor.Style = inputStyle
@@ -229,21 +218,21 @@ func translation(word models.Word) string {
 func style(view string) string {
 	var style = lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color(default_text)).
+		Foreground(lipgloss.Color(purple)).
 		Background(lipgloss.Color(bg)).
 		PaddingTop(2).
 		PaddingBottom(2).
 		PaddingLeft(4).
 		Width(100).
 		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color(default_text)).
+		BorderForeground(lipgloss.Color(purple)).
 		BorderBackground(lipgloss.Color(bg))
 	return style.Render(view)
 }
 
 func greenStyle(view string) string {
 	var style = lipgloss.NewStyle().
-		Foreground(lipgloss.Color(correct_color))
+		Foreground(lipgloss.Color(green))
 
 	return style.Render(view)
 }
@@ -251,7 +240,7 @@ func greenStyle(view string) string {
 func correctStyle(view string) string {
 	var style = lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color(correct_color)).
+		Foreground(lipgloss.Color(green)).
 		Background(bg).
 		PaddingTop(2).
 		PaddingBottom(2)
@@ -262,7 +251,7 @@ func correctStyle(view string) string {
 func peekStyle(view string) string {
 	var style = lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color(input_color)).
+		Foreground(lipgloss.Color(orange)).
 		Background(bg).
 		PaddingTop(2).
 		PaddingBottom(2)

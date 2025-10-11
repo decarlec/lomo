@@ -1,6 +1,6 @@
 package messages
 
-import "learn/spanish/models"
+	import "github.com/decarlec/lomo/models"
 
 // Msg types for transitions
 type SwitchToLessonMsg struct {
@@ -10,5 +10,7 @@ type SwitchToLessonMsg struct {
 type SwitchToReviewMsg struct {
 	Lesson models.Lesson
 }
+
+type SwitchToLessonMenuMsg struct {}
 
 type SwitchToMenuMsg struct{}

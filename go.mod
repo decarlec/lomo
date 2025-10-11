@@ -1,4 +1,4 @@
-module learn/spanish
+module github.com/decarlec/lomo
 
 go 1.24.1
 

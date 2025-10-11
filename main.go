@@ -1,15 +1,13 @@
 package main
 
 import (
-	"embed"
 	"fmt"
-	"learn/spanish/lesson"
-	"learn/spanish/messages"
-	"learn/spanish/models"
+	"github.com/decarlec/lomo/lesson"
+	"github.com/decarlec/lomo/db"
+	"github.com/decarlec/lomo/messages"
+	"github.com/decarlec/lomo/models"
 	"log"
 	"os"
-
-	"database/sql"
 
 	tea "github.com/charmbracelet/bubbletea"
 	_ "github.com/mattn/go-sqlite3"
@@ -29,46 +27,6 @@ type MainMenuModel struct {
 	selected map[int]struct{} // which to-do items are selected
 }
 
-//go:embed words.db
-var embeddedDB embed.FS
-
-var db *sql.DB
-
-// initDB initializes the database connection
-
-func initDB() error {
-	dbContent, err := embeddedDB.ReadFile("words.db")
-	if err != nil {
-		log.Fatalf("Error reading embedded database: %v", err)
-	}
-
-	// Create a temporary file to store the database content
-	tempFile, err := os.CreateTemp("", "embedded-db-*.db")
-	if err != nil {
-		log.Fatalf("Error creating temporary file: %v", err)
-	}
-	defer tempFile.Close()
-	defer os.Remove(tempFile.Name()) // Clean up the temporary file
-
-	_, err = tempFile.Write(dbContent)
-	if err != nil {
-		log.Fatalf("Error writing to temporary file: %v", err)
-	}
-
-	// Start up the database
-	db, err = sql.Open("sqlite3", tempFile.Name())
-	if err != nil {
-		return fmt.Errorf("failed to open database: %w", err)
-	}
-
-	// Test the connection
-	if err := db.Ping(); err != nil {
-		return fmt.Errorf("failed to connect to database: %w", err)
-	}
-	log.Println("Database connection initialized")
-	return nil
-}
-
 // AppModel methods
 func (m AppModel) Init() tea.Cmd {
 	return m.currentModel.Init()
@@ -77,7 +35,7 @@ func (m AppModel) Init() tea.Cmd {
 func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case messages.SwitchToLessonMsg:
-		lessonModel, cmd := lesson.NewLessonModel(db, msg.LessonId)
+		lessonModel, cmd := lesson.NewLessonModel(msg.LessonId)
 		m.currentModel = lessonModel
 		m.lesson = lessonModel
 		return m, cmd
@@ -104,11 +62,11 @@ func main() {
 	defer f.Close()
 
 	// Connect to db
-	if err := initDB(); err != nil {
+	if err := db.InitDB(); err != nil {
 		fmt.Printf("Error initializing database: %v\n", err)
 		os.Exit(1)
 	}
-	defer db.Close()
+	defer db.DB.Close()
 
 	// Initialize models
 	mainMenu := initialModel()
@@ -145,7 +103,7 @@ func (m MainMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
-			db.Close()
+			db.DB.Close()
 			return m, tea.Quit
 		case "up", "k":
 			if m.cursor > 0 {
@@ -164,7 +122,7 @@ func (m MainMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			switch m.cursor {
 			case 0:
-				return lesson.NewLessonMenuModel(db)
+				return lesson.NewLessonMenuModel()
 			case 1:
 				return lesson.NewReviewLessonModel(getReviewLesson())
 			}
@@ -200,7 +158,7 @@ func (m MainMenuModel) View() string {
 
 
 func getReviewLesson() *models.Lesson {
-words, err := models.GetAllWords(db)
+words, err := models.GetAllWords()
 	if err != nil {
 		log.Fatalf("Error fetching all words for review lesson: %v\n", err)
 	}

@@ -2,12 +2,11 @@ package lesson
 
 import (
 	"fmt"
-	"learn/spanish/messages"
-	"learn/spanish/models"
 	"log"
 	"strings"
 
-	"database/sql"
+	"github.com/decarlec/lomo/messages"
+	"github.com/decarlec/lomo/models"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -21,19 +20,16 @@ type LessonMenuModel struct {
 }
 
 var (
-    purple    = lipgloss.Color("99")
-    gray      = lipgloss.Color("245")
-    lightGray = lipgloss.Color("241")
 
-    headerStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Bold(true).Align(lipgloss.Center)
-    cellStyle    = lipgloss.NewStyle().Padding(0, 1).Width(14)
-    oddRowStyle  = cellStyle.Foreground(gray)
-    evenRowStyle = cellStyle.Foreground(lightGray)
+    headerStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(purple)).Bold(true).Align(lipgloss.Center)
+    cellStyle    = lipgloss.NewStyle().Padding(0, 1).Width(10).Bold(true).AlignHorizontal(lipgloss.Center)
+    oddRowStyle  = cellStyle.Foreground(orange)
+    evenRowStyle = cellStyle.Foreground(orange_wash)
 )
 
 // NewMenuModel creates a MenuModel with lessons from the database
-func NewLessonMenuModel(db *sql.DB) (*LessonMenuModel, tea.Cmd) {
-	lessons, err := models.GetAllLessons(db)
+func NewLessonMenuModel() (*LessonMenuModel, tea.Cmd) {
+	lessons, err := models.GetAllLessons()
 
 	if err != nil {
 		log.Fatalf("Error fetching lessons: %v\n", err)
@@ -78,11 +74,13 @@ func (m LessonMenuModel) View() string {
 		if m.cursor == lessonIndex {
 			cursor = "=>"
 		}
-		rows[lessonIndex] = []string{fmt.Sprintf("%s Lesson %d", cursor, lesson.Id), fmt.Sprintf("| %d/%d", getNumCorrect(lesson.Words), len(strings.Split(lesson.WordIDs, ",")))}
+		rows[lessonIndex] = []string{fmt.Sprintf("%s %d", cursor, lesson.Id), fmt.Sprintf("%d/%d", getNumCorrect(lesson.Words), len(strings.Split(lesson.WordIDs, ",")))}
 	}
 	table := table.New().
-    Border(lipgloss.NormalBorder()).
-    BorderStyle(lipgloss.NewStyle().Foreground(purple)).
+    Border(lipgloss.RoundedBorder()).
+    BorderStyle(
+			lipgloss.NewStyle().Foreground(purple).
+			Bold(true)).
     StyleFunc(func(row, col int) lipgloss.Style {
         switch {
         case row == table.HeaderRow:

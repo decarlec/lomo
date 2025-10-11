@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 	"log"
+	"github.com/decarlec/lomo/db"
 )
 
 type Word struct {
@@ -66,7 +67,8 @@ func GetWordByID(db *sql.DB, id int64) (Word, error) {
 	return word, nil
 }
 
-func GetAllWords(db *sql.DB) ([]Word, error) {
+func GetAllWords() ([]Word, error) {
+	db := db.DB;
 	query := "SELECT id, spanish, english_translations, english_primary, word_type FROM words"
 
 	words := []Word{}
@@ -88,11 +90,11 @@ func GetAllWords(db *sql.DB) ([]Word, error) {
 	return words, nil
 }
 
-func GetLessonByID(db *sql.DB, id int64) (*Lesson, error) {
+func GetLessonByID(id int64) (*Lesson, error) {
 	var lesson Lesson
 
 	// Get lesson
-	err := db.QueryRow("SELECT id, word_ids FROM lessons WHERE id = ?", id).Scan(
+	err := db.DB.QueryRow("SELECT id, word_ids FROM lessons WHERE id = ?", id).Scan(
 		&lesson.Id, &lesson.WordIDs,
 	)
 	if err != nil {
@@ -112,7 +114,7 @@ func GetLessonByID(db *sql.DB, id int64) (*Lesson, error) {
 		placeholders,
 	)
 
-	rows, err := db.Query(query)
+	rows, err := db.DB.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -131,12 +133,12 @@ func GetLessonByID(db *sql.DB, id int64) (*Lesson, error) {
 
 
 //Returns all lessons from the database, but does not load words, this should be deferred until later as needed
-func GetAllLessons(db *sql.DB) ([]Lesson, error) {
+func GetAllLessons() ([]Lesson, error) {
 	var lessons []Lesson
 
 	query := `SELECT id, word_ids FROM lessons`
 	
-	rows, err := db.Query(query)
+	rows, err := db.DB.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching lessons: %w", err)
 	}
