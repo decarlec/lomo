@@ -11,9 +11,9 @@ The tool is best used alongside various memory tecnhiques such as Mnemonics and 
 _____
 
 #### Pre-requisites:
-[golang](https://go.dev/) 1.20 or higher
-[git](https://git-scm.com/downloads)
-[make](https://www.gnu.org/software/make/)
+- [golang](https://go.dev/) 1.20 or higher
+- [git](https://git-scm.com/downloads)
+- [make](https://www.gnu.org/software/make/)
 _____
 
 ## Installation
