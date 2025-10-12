@@ -18,14 +18,14 @@ _____
 
 ## Installation
 
-Right now I don't have a way to distribute this tool, so you'll need to clone the repository and run it locally.
+Right now I don't have a way to distribute this tool, so you'll need to clone the repository and build locally.
 If there is ever enough interest, I may package it up for easier installation.
+Right now build scripts only support linux and macOS but it should be easy enough to build on Windows with minor modifications.
 
-Clone the repository:
+Clone the repository and run install commands:
 ```bash
 git clone https://github.com/decarlec/lomo.git
-cd lomo
-make db_bootstrap // This will create the database and populate it with some initial data
-make run // This will start the application in your terminal
 
+cd lomo
+make install
 ```
