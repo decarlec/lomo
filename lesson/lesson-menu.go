@@ -7,6 +7,7 @@ import (
 
 	"github.com/decarlec/lomo/messages"
 	"github.com/decarlec/lomo/models"
+	"github.com/decarlec/lomo/assets"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -19,12 +20,10 @@ type LessonMenuModel struct {
 	cursor  int
 }
 
-var (
-
-    headerStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(purple)).Bold(true).Align(lipgloss.Center)
-    cellStyle    = lipgloss.NewStyle().Padding(0, 1).Width(10).Bold(true).AlignHorizontal(lipgloss.Center)
-    oddRowStyle  = cellStyle.Foreground(orange)
-    evenRowStyle = cellStyle.Foreground(orange_wash)
+var (
+    headerStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(assets.Purple)).Bold(true).Align(lipgloss.Center)
+    cellStyle    = lipgloss.NewStyle().Padding(0, 1).Width(10).Bold(true).AlignHorizontal(lipgloss.Center)
+    rowStyle  = cellStyle.Foreground(assets.Orange)
 )
 
 // NewMenuModel creates a MenuModel with lessons from the database
@@ -33,7 +32,7 @@ func NewLessonMenuModel() (*LessonMenuModel, tea.Cmd) {
 
 	if err != nil {
 		log.Fatalf("Error fetching lessons: %v\n", err)
-	}	
+	}
 	log.Printf("Fetched %d lessons from database\n", len(lessons))
 	return &LessonMenuModel{lessons: lessons }, nil
 }
@@ -84,16 +83,14 @@ func (m LessonMenuModel) View() string {
 	table := table.New().
     Border(lipgloss.RoundedBorder()).
     BorderStyle(
-			lipgloss.NewStyle().Foreground(purple).
+			lipgloss.NewStyle().Foreground(assets.Purple).
 			Bold(true)).
     StyleFunc(func(row, col int) lipgloss.Style {
         switch {
         case row == table.HeaderRow:
             return headerStyle
-        case row%2 == 0:
-            return evenRowStyle
         default:
-            return oddRowStyle
+            return rowStyle
         }
     }).
     Headers("Lesson", "Progress").

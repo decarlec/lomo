@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/decarlec/lomo/assets"
 	"github.com/decarlec/lomo/db"
 	"github.com/decarlec/lomo/messages"
 	"github.com/decarlec/lomo/models"
@@ -17,6 +18,7 @@ type MainMenuModel struct {
 	Choices  []string         // lesson ids
 	cursor   int              // which to-do list item our cursor is pointing at
 	Selected map[int]struct{} // which to-do items are selected
+	Logo string	
 }
 
 func (m MainMenuModel) Init() tea.Cmd {
@@ -66,23 +68,17 @@ func (m MainMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m MainMenuModel) View() string {
 	// The header
-	var welcome = lipgloss.NewStyle().Foreground(lipgloss.Color(orange_wash)).Bold(true).Align(lipgloss.Center).Render(
+	var welcome = lipgloss.NewStyle().Foreground(lipgloss.Color(assets.Orange)).Bold(true).Align(lipgloss.Center).Render(
 `Welcome to
 `)
-	var logo = lipgloss.NewStyle().Foreground(lipgloss.Color(purple)).Bold(true).Align(lipgloss.Center).Render(`
- __     __   _  _   __
-(  )   /  \ ( \/ ) /  \
-/ (_/\(  O )/ \/ \(  O )
-\____/ \__/ \_)(_/ \__/
-`)
 
-	var message = lipgloss.NewStyle().Foreground(lipgloss.Color(orange)).Bold(true).Align(lipgloss.Center).Render(
+	var message = lipgloss.NewStyle().Foreground(lipgloss.Color(assets.Orange)).Bold(true).Align(lipgloss.Center).Render(
 `
 
 	...the language learning TUI (too-ee) app!
 `)
 
-	s := welcome + logo + message + "\n"
+	s := welcome + m.Logo + message + "\n"
 
 	// Iterate over our choices
 	for i, choice := range m.Choices {
@@ -98,12 +94,12 @@ func (m MainMenuModel) View() string {
 
 	var style = lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color(cyan)).
+		Foreground(lipgloss.Color(assets.Cyan)).
 		PaddingTop(2).
 		PaddingLeft(4).
 		Width(100).
 		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color(purple))
+		BorderForeground(lipgloss.Color(assets.Purple))
 
 
 	s = style.Render(s)

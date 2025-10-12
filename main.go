@@ -2,13 +2,16 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 
+	"github.com/decarlec/lomo/assets"
 	"github.com/decarlec/lomo/db"
 	"github.com/decarlec/lomo/lesson"
 	"github.com/decarlec/lomo/messages"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -104,6 +107,7 @@ func initialModel() lesson.MainMenuModel {
 		// the  map like a mathematical set. The keys refer to the indexes
 		// of the `choices` slice, above.
 		Selected: make(map[int]struct{}),
+		Logo: lipgloss.NewStyle().Foreground(lipgloss.Color(assets.Purple)).Bold(true).Align(lipgloss.Center).Render(assets.Logos[rand.Intn(len(assets.Logos))]),
 	}
 }
 

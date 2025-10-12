@@ -7,8 +7,10 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"github.com/decarlec/lomo/models"
+
+	"github.com/decarlec/lomo/assets"
 	"github.com/decarlec/lomo/messages"
+	"github.com/decarlec/lomo/models"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -126,7 +128,7 @@ func (m LessonModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				currentWord.Correct = false
 				m.textInput.Placeholder = "try again!"
-				m.textInput.PlaceholderStyle.Foreground(lipgloss.Color(input_wrong))
+				m.textInput.PlaceholderStyle.Foreground(lipgloss.Color(assets.Input_wrong))
 				m.textInput.SetValue("")
 			}
 		}
@@ -187,7 +189,7 @@ func (m LessonModel) View() string {
 
 	// Word display
 	s += "Spanish: "
-	s += lipgloss.NewStyle().Bold(true).UnsetPadding().Foreground(cyan).Render(word.Spanish)
+	s += lipgloss.NewStyle().Bold(true).UnsetPadding().Foreground(assets.Cyan).Render(word.Spanish)
 	s += "\n"
 	s += m.textInput.View() + "\n"
 
@@ -208,7 +210,7 @@ func getLessonInput() textinput.Model {
 	ti.Focus()
 	ti.CharLimit = 156
 	ti.Width = 10
-	var inputStyle = lipgloss.NewStyle().Foreground(orange).Background(bg)
+	var inputStyle = lipgloss.NewStyle().Foreground(assets.Orange).Background(assets.Bg)
 	ti.PromptStyle = inputStyle
 	ti.TextStyle = inputStyle
 	ti.Cursor.Style = inputStyle
@@ -223,21 +225,21 @@ func translation(word models.Word) string {
 func style(view string) string {
 	var style = lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color(purple)).
-		Background(lipgloss.Color(bg)).
+		Foreground(lipgloss.Color(assets.Purple)).
+		Background(lipgloss.Color(assets.Bg)).
 		PaddingTop(2).
 		PaddingBottom(2).
 		PaddingLeft(4).
 		Width(100).
 		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color(purple)).
-		BorderBackground(lipgloss.Color(bg))
+		BorderForeground(lipgloss.Color(assets.Purple)).
+		BorderBackground(lipgloss.Color(assets.Bg))
 	return style.Render(view)
 }
 
 func greenStyle(view string) string {
 	var style = lipgloss.NewStyle().
-		Foreground(lipgloss.Color(green))
+		Foreground(lipgloss.Color(assets.Green))
 
 	return style.Render(view)
 }
@@ -245,8 +247,8 @@ func greenStyle(view string) string {
 func correctStyle(view string) string {
 	var style = lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color(green)).
-		Background(bg).
+		Foreground(lipgloss.Color(assets.Green)).
+		Background(assets.Bg).
 		PaddingTop(2).
 		PaddingBottom(2)
 
@@ -256,8 +258,8 @@ func correctStyle(view string) string {
 func peekStyle(view string) string {
 	var style = lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color(orange)).
-		Background(bg).
+		Foreground(lipgloss.Color(assets.Orange)).
+		Background(assets.Bg).
 		PaddingTop(2).
 		PaddingBottom(2)
 
