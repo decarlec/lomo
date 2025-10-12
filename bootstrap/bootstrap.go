@@ -29,14 +29,14 @@ type XmlWord struct {
 
 func main() {
 	askForConfirmation("Deleting words.db. Are you sure?")
-	err := os.Remove("../words.db")
+	err := os.Remove("../db/words.db")
 	if err != nil && !os.IsNotExist(err) {
 		fmt.Printf("Failed to delete existing database: %v\n", err)
 		os.Exit(1)
 	}
 
 	// Initialize SQLite3 database
-	db, err := sql.Open("sqlite3", "../words.db")
+	db, err := sql.Open("sqlite3", "../db/words.db")
 	if err != nil {
 		fmt.Printf("Failed to open database: %v\n", err)
 		os.Exit(1)
@@ -78,8 +78,6 @@ func processWords(db *sql.DB, lessonWords []XmlWord) error {
 		fmt.Printf("Error opening file: %v\n", err)
 		os.Exit(1)
 	}
-
-	askForConfirmation("This will put a bunch of words in the db, and take a while. Are you sure?")
 
 	var xDict XmlDictionary
 
@@ -153,7 +151,6 @@ func insertWord(tx *sql.Tx, word models.Word) error {
 
 // CreateLessons creates lessons with 30 unique words each from the vocabulary table
 func createLessons(db *sql.DB, words []XmlWord, lessonSize int) error {
-	askForConfirmation("This will create lessons in the db, are you sure?")
 
 	// Pre-load all word IDs once instead of querying for each lesson
 	wordMap := make(map[string]int64)
