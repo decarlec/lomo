@@ -1,11 +1,24 @@
+OS := $(shell uname -s)
+
+ifeq ($(OS),Linux)
+install: install_linux
+endif
+
+ifeq ($(OS),Darwin)
+install: install_mac
+endif
+
 db_bootstrap:
 	cd bootstrap && go run bootstrap.go
 
 run:
 	go run . 
 
-install_unix:
-	sudo cp bin/lomo_linux /usr/local/bin/lomo
+install_linux:
+	$(MAKE) build_linux && sudo cp bin/lomo_linux /usr/local/bin/lomo
+
+install_mac:
+	$(MAKE) build_mac && sudo cp bin/lomo_mac /usr/local/bin/lomo
 
 build_linux:
 	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o bin/lomo_linux main.go && chmod +x bin/lomo_linux
