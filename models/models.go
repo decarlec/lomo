@@ -3,9 +3,10 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 	"time"
-	"log"
+
 	"github.com/decarlec/lomo/db"
 )
 
@@ -38,14 +39,11 @@ type Result struct {
 }
 
 type History struct {
-	tableName struct{}  `pg:"history"`
-	Id        int64     `pg:"id,pk"`
-	LessonId  int64     `pg:"lesson_id"`
-	Lesson    *Lesson   `pg:"rel:belongs-to"`
-	UserId    int64     `pg:"user_id"`
-	User      *User     `pg:"rel:belongs-to"`
-	Results   []Result  `pg:"results"`
-	CreatedAt time.Time `pg:"created_at"`
+	Id        int64     `db:"id"`
+	LessonId  int64     `db:"lesson_id"`
+	UserId    int64     `db:"user_id"`
+	CorrectIds string `db:"correct_ids"`
+	CreatedAt time.Time `db:"created_at"`
 }
 
 
@@ -160,6 +158,40 @@ func GetAllLessons() ([]Lesson, error) {
 	}
 
 	return lessons, nil
+}
+
+func GetHistoryForLesson(lessonId int64) ([]History, error) {
+	histories := []History{}
+	query := `SELECT id, lesson_id, user_id, correct_ids, created_at FROM history WHERE lesson_id = ?`
+	// Get lesson
+
+	rows, err := db.DB.Query(query, lessonId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var history History
+		rows.Scan(&history.Id, &history.LessonId, &history.CorrectIds, &history.CreatedAt, &history.UserId)
+		//Need to process the English translations into a slice
+
+		histories = append(histories, history)
+	}
+
+	return histories, nil
+}
+
+func WriteHistory(lesson Lesson, userId int, words []Word) error {
+	correctIds := ""
+	for wordId := range lesson.Words {
+		if words[wordId].Correct {
+		correctIds += fmt.Sprintf("%d,", lesson.Words[wordId].Id)
+	}
+	}
+	log.Printf("Writing history for lesson %d, user %d\n, words %s ", lesson.Id, userId, correctIds)
+	_, err := db.DB.Exec("INSERT INTO history (lesson_id, user_id, correct_ids) VALUES (?, ?, ?)", lesson.Id, userId, correctIds)
+	return  err 
 }
 
 

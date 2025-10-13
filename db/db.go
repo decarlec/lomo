@@ -30,7 +30,6 @@ func InitDB() error {
 		log.Fatalf("Error creating temporary file: %v", err)
 	}
 	defer tempFile.Close()
-	defer os.Remove(tempFile.Name()) // Clean up the temporary file
 
 	_, err = tempFile.Write(dbContent)
 	if err != nil {

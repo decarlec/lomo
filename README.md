@@ -5,7 +5,7 @@ ___
 
 ### What is lomo?
 
-Lomo is a simple language learning tool built for the purpose of language learning. It's a simple way to start learning a language, and should be to augment language learning by repeated exposure to the most common words in the language to help you bootstrap your vocabulary so you can move onto deeper learning. 
+Lomo is a simple language learning tool built for the purpose of language learning. It's designed around the idea of learning the top 1000 most common words as a way to bootstrap yourself into deeper language learning.
 
 The tool is best used alongside various memory tecnhiques such as Mnemonics and spaced repetition. I find saying the words out loud as I enter them helps to increase retention as well. If you're not sure of the pronuciation, you can use a tool like Google Translate to hear the word spoken aloud.
 _____

@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     lesson_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
-    results TEXT NOT NULL DEFAULT '[]',
+    correct_ids TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (lesson_id) REFERENCES lessons(id),
     FOREIGN KEY (user_id) REFERENCES users(id)

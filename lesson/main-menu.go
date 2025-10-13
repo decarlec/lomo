@@ -7,7 +7,6 @@ import (
 	"github.com/decarlec/lomo/assets"
 	"github.com/decarlec/lomo/db"
 	"github.com/decarlec/lomo/messages"
-	"github.com/decarlec/lomo/models"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -57,7 +56,7 @@ func (m MainMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case 1:
 				return m, func() tea.Msg {
 					log.Printf("Switching to Review Lesson\n")
-					return messages.SwitchToReviewMsg{Lesson: *getReviewLesson()}
+					return messages.SwitchToReviewMsg{}
 				}
 			}
 
@@ -112,11 +111,3 @@ func (m MainMenuModel) View() string {
 	return s
 }
 
-func getReviewLesson() *models.Lesson {
-	words, err := models.GetAllWords()
-	if err != nil {
-		log.Fatalf("Error fetching all words for review lesson: %v\n", err)
-	}
-
-	return &models.Lesson{Words: words}
-}

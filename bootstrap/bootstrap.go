@@ -54,6 +54,9 @@ func main() {
 		fmt.Printf("Failed to execute schema: %v", err)
 	}
 
+	//Create default user
+	createUser(db)
+
 	words := parseLessonWords("1000words.tsv")
 	//Processes words from both files
 	processWords(db, words)
@@ -63,6 +66,11 @@ func main() {
 
 	//Delete words with no lessons
 	deleteOrphanWords(db)
+}
+
+func createUser(db *sql.DB) error {
+	_, err := db.Exec("insert into users (name) values (?)", "default")
+	return err
 }
 
 // Delete words that have no primary translation 

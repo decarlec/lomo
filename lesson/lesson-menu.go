@@ -5,9 +5,9 @@ import (
 	"log"
 	"strings"
 
+	"github.com/decarlec/lomo/assets"
 	"github.com/decarlec/lomo/messages"
 	"github.com/decarlec/lomo/models"
-	"github.com/decarlec/lomo/assets"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -17,6 +17,7 @@ import (
 // MenuModel displays a list of lessons
 type LessonMenuModel struct {
 	lessons []models.Lesson
+	histories []models.History
 	cursor  int
 }
 
@@ -29,6 +30,20 @@ var (
 // NewMenuModel creates a MenuModel with lessons from the database
 func NewLessonMenuModel() (*LessonMenuModel, tea.Cmd) {
 	lessons, err := models.GetAllLessons()
+	histories := []models.History{}
+	for _, lesson := range lessons {
+		lessonHistories, err := models.GetHistoryForLesson(lesson.Id)	
+		if err != nil {
+			log.Fatalf("Error fetching history for lesson %d: %v\n", lesson.Id, err)
+		}
+		var newest models.History
+		for _, history := range lessonHistories {
+			if history.CreatedAt.After(newest.CreatedAt) {
+				newest = history
+			}
+		}
+		histories = append(histories, newest)
+	}
 
 	if err != nil {
 		log.Fatalf("Error fetching lessons: %v\n", err)
@@ -78,7 +93,15 @@ func (m LessonMenuModel) View() string {
 		if m.cursor == lessonIndex {
 			cursor = "=>"
 		}
-		rows[lessonIndex] = []string{fmt.Sprintf("%s %d", cursor, lesson.Id), fmt.Sprintf("%d/%d", getNumCorrect(lesson.Words), len(strings.Split(lesson.WordIDs, ",")))}
+		var history models.History
+		for _, h := range m.histories {
+			if h.LessonId == lesson.Id {
+				history = h
+				log.Printf("Found history for lesson %d: %v\n", lesson.Id, history)
+			}
+		}
+
+		rows[lessonIndex] = []string{fmt.Sprintf("%s %d", cursor, lesson.Id), fmt.Sprintf("%d/%d", len(strings.Split(history.CorrectIds, ",")), len(strings.Split(lesson.WordIDs, ",")))}
 	}
 	table := table.New().
     Border(lipgloss.RoundedBorder()).
@@ -86,8 +109,8 @@ func (m LessonMenuModel) View() string {
 			lipgloss.NewStyle().Foreground(assets.Purple).
 			Bold(true)).
     StyleFunc(func(row, col int) lipgloss.Style {
-        switch {
-        case row == table.HeaderRow:
+        switch  row {
+        case table.HeaderRow:
             return headerStyle
         default:
             return rowStyle

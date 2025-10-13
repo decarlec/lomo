@@ -22,6 +22,7 @@ type LessonModel struct {
 	Lesson     models.Lesson
 	words      []models.Word
 	textInput  textinput.Model
+	result []models.History
 	lessonType string
 	current    int
 }
@@ -94,6 +95,10 @@ func (m LessonModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		switch msg.Type {
 		case tea.KeyCtrlC:
+			err := models.WriteHistory(m.Lesson, 1, m.Lesson.Words)
+			if err != nil {
+				log.Fatal(err)
+			}
 			return m, tea.Quit
 
 		//Scroll words
@@ -116,6 +121,10 @@ func (m LessonModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				log.Printf("Switching to main menu\n")
 					return messages.SwitchToMenuMsg{}
 				}
+			}
+			err := models.WriteHistory(m.Lesson, 1, m.Lesson.Words)
+			if err != nil {
+				log.Fatal(err)
 			}
 			return m, func() tea.Msg {
 				log.Printf("Switching to lesson menu\n")
@@ -168,10 +177,11 @@ func getNumCorrect(words []models.Word) int {
 	for _, word := range words {
 		if word.Correct {
 			num += 1
-		}
+}
 	}
 	return num
 }
+
 
 func (m LessonModel) View() string {
 	if len(m.words) == 0 {
@@ -202,7 +212,7 @@ func (m LessonModel) View() string {
 
 	//Help text
 	s += lipgloss.NewStyle().PaddingTop(1).UnsetBold().Render("\nPress the / key to see answer, left/right to navigate, Esc go back, Ctrl+C to quit.")
-	return style(s)
+	return lessonStyle(s)
 }
 
 func getLessonInput() textinput.Model {
@@ -222,7 +232,7 @@ func translation(word models.Word) string {
 	return fmt.Sprintf("Translation: %s \n\nOther translations:\n\t%s", word.EnglishPrimary, strings.Join(word.English_Translations, "\n\t"))
 }
 
-func style(view string) string {
+func lessonStyle(view string) string {
 	var style = lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color(assets.Purple)).
@@ -234,13 +244,6 @@ func style(view string) string {
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color(assets.Purple)).
 		BorderBackground(lipgloss.Color(assets.Bg))
-	return style.Render(view)
-}
-
-func greenStyle(view string) string {
-	var style = lipgloss.NewStyle().
-		Foreground(lipgloss.Color(assets.Green))
-
 	return style.Render(view)
 }
 

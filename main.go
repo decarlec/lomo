@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"os"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/decarlec/lomo/db"
 	"github.com/decarlec/lomo/lesson"
 	"github.com/decarlec/lomo/messages"
+	"github.com/decarlec/lomo/models"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -56,7 +58,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.currentModel = m.lessonMenu
 	case messages.SwitchToReviewMsg:
 		if m.review == nil {
-			m.review, _ = lesson.NewReviewLessonModel(&msg.Lesson)
+			m.review, _ = lesson.NewReviewLessonModel(getReviewLesson())
 		}
 		m.currentModel = m.review
 	}
@@ -111,3 +113,11 @@ func initialModel() lesson.MainMenuModel {
 	}
 }
 
+func getReviewLesson() *models.Lesson {
+	words, err := models.GetAllWords()
+	if err != nil {
+		log.Fatalf("Error fetching all words for review lesson: %v\n", err)
+	}
+
+	return &models.Lesson{Words: words}
+}
